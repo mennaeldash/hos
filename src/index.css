@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Tajawal', sans-serif;
+    direction: rtl;
+    background-color: #F8FAFC;
+    color: #0F172A;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: #2563EB;
+    color: white;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all duration-300 cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply bg-primary-500 text-white hover:bg-primary-600 hover:shadow-lg hover:shadow-primary-500/30 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-primary-700 border-2 border-slate-200 hover:border-primary-400 hover:bg-primary-50 active:scale-95;
+  }
+
+  .btn-accent {
+    @apply bg-primary-500 text-white hover:bg-primary-600 hover:shadow-lg hover:shadow-primary-500/30 active:scale-95;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-500;
+  }
+
+  .section-padding {
+    @apply py-16 md:py-24;
+  }
+
+  .container-custom {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+.text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-l from-primary-600 to-primary-400;
+  }
+
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/40;
+  }
+
+  .nav-link {
+    @apply relative text-slate-700 hover:text-primary-600 font-bold transition-colors duration-300 py-2;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 right-0 w-0 h-0.5 bg-primary-600 transition-all duration-300;
+  }
+
+  .nav-link:hover::after,
+  .nav-link.active::after {
+    @apply w-full;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Hero overlay gradient */
+.hero-overlay {
+  background: linear-gradient(135deg, rgba(15, 45, 82, 0.92) 0%, rgba(37, 99, 235, 0.75) 100%);
+}
+
+/* Animated gradient background */
+.animated-gradient {
+  background: linear-gradient(270deg, #2563EB, #60A5FA, #1D4ED8, #2563EB);
+  background-size: 300% 300%;
+  animation: gradientShift 6s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Shimmer effect for placeholders */
+.shimmer-bg {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Reveal on scroll */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.4s ease;
+}
+
+.card-lift:hover {
+  transform: translateY(-8px);
+}
+
+/* Icon circle */
+.icon-circle {
+  @apply flex items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300;
+}
+
+/* Counter pulse animation */
+.counter-pulse {
+  animation: counterPulse 0.6s ease-out;
+}
+
+@keyframes counterPulse {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.15);
+    text-shadow: 0 0 20px currentColor;
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Hide scrollbar for carousels */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
