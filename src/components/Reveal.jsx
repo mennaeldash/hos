@@ -8,11 +8,12 @@ export default function Reveal({ children, className = '', delay = 0 }) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          setTimeout(() => setVisible(true), delay);
+          const timer = setTimeout(() => setVisible(true), delay);
           observer.disconnect();
+          return () => clearTimeout(timer);
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0.1 }
     );
 
     if (ref.current) observer.observe(ref.current);
@@ -20,7 +21,11 @@ export default function Reveal({ children, className = '', delay = 0 }) {
   }, [delay]);
 
   return (
-    <div ref={ref} className={`reveal ${visible ? 'visible' : ''} ${className}`}>
+    <div
+      ref={ref}
+      className={`reveal ${visible ? 'visible' : ''} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
       {children}
     </div>
   );

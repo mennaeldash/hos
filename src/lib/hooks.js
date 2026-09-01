@@ -1,144 +1,453 @@
-import { useEffect, useState } from 'react';
-import { getDepartments } from '@/services/departments';
-import { getDoctors, getDoctorSchedule, getDoctorVacations } from '@/services/doctors';
-import { getStaff } from '@/services/staff';
-import { getEquipment } from '@/services/equipment';
-import { getPartners } from '@/services/partners';
-import { getStatistics } from '@/services/statistics';
-import { getAppointments } from '@/services/appointments';
-import { getPatients } from '@/services/patients';
-import { getContactMessages } from '@/services/contact';
-import { getNotifications } from '@/services/notifications';
-import { getSiteContent, getAllSiteContent } from '@/services/content';
-import { mockTestimonials } from '@/services/mockData';
+import {
+  useEffect,
+  useState,
+} from "react";
 
-// Helper to create a reusable fetch hook
-function useServiceFetch(fetchFn, filterFn = null) {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+import {
+  getDepartments,
+} from "@/services/departments";
+
+import {
+  getDoctors,
+  getDoctorSchedule,
+} from "@/services/doctors";
+
+import {
+  getStaff,
+} from "@/services/staff";
+
+import {
+  getEquipment,
+} from "@/services/equipment";
+
+import {
+  getPartners,
+} from "@/services/partners";
+
+import {
+  getStatistics,
+} from "@/services/statistics";
+
+import {
+  getAppointments,
+} from "@/services/appointments";
+
+import {
+  getPatients,
+} from "@/services/patients";
+
+import {
+  getContactMessages,
+} from "@/services/contact";
+
+import {
+  getNotifications,
+} from "@/services/notifications";
+
+import {
+  getSiteContent,
+  getAllSiteContent,
+} from "@/services/content";
+
+import {
+  mockTestimonials,
+} from "@/services/mockData";
+
+/* =========================================================
+   GENERIC SERVICE FETCH HOOK
+========================================================= */
+
+function useServiceFetch(
+  fetchFn,
+  filterFn = null
+) {
+  const [data, setData] =
+    useState([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState(null);
 
   const refetch = async () => {
     setLoading(true);
+
     try {
-      const rows = await fetchFn();
-      setData(filterFn ? rows.filter(filterFn) : rows);
+      const rows =
+        await fetchFn();
+
+      const safeRows =
+        Array.isArray(rows)
+          ? rows
+          : [];
+
+      setData(
+        filterFn
+          ? safeRows.filter(
+              filterFn
+            )
+          : safeRows
+      );
+
       setError(null);
     } catch (err) {
-      setError(err.message);
+      console.error(
+        "SERVICE FETCH ERROR:",
+        err
+      );
+
+      setData([]);
+
+      setError(
+        err?.message ||
+          "حدث خطأ أثناء تحميل البيانات"
+      );
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
     refetch();
   }, []);
 
-  return { data, loading, error, refetch };
+  return {
+    data,
+    loading,
+    error,
+    refetch,
+  };
 }
 
-export const useDepartments = () => useServiceFetch(getDepartments);
-export const useDoctors = () => useServiceFetch(getDoctors);
-export const useStaff = () => useServiceFetch(getStaff);
-export const useEquipment = () => useServiceFetch(getEquipment);
-export const usePartners = () => useServiceFetch(getPartners);
-export const useStatistics = () => useServiceFetch(getStatistics);
-export const useAppointments = () => useServiceFetch(getAppointments);
-export const useContactMessages = () => useServiceFetch(getContactMessages);
-export const usePatients = () => useServiceFetch(getPatients);
-export const useNotifications = () => useServiceFetch(getNotifications);
+/* =========================================================
+   DEPARTMENTS
+========================================================= */
 
-// Testimonials come from mock data directly
-export const useTestimonials = () => {
-  const [data] = useState(mockTestimonials);
-  const [loading] = useState(false);
-  return { data, loading, refetch: () => {} };
-};
+export const useDepartments =
+  () =>
+    useServiceFetch(
+      getDepartments
+    );
 
-export function useSiteContent(section) {
-  const [content, setContent] = useState(null);
-  const [loading, setLoading] = useState(true);
+/* =========================================================
+   DOCTORS
+========================================================= */
+
+export const useDoctors =
+  () =>
+    useServiceFetch(
+      getDoctors
+    );
+
+/* =========================================================
+   DOCTOR SCHEDULE
+
+   بنستخدمه فقط لعرض أيام عمل الدكتور.
+
+   حاليًا المصدر:
+   mockDoctorSchedules
+
+   من خلال:
+   getDoctorSchedule()
+========================================================= */
+
+export function useDoctorSchedule(
+  doctorId
+) {
+  const [
+    schedule,
+    setSchedule,
+  ] = useState(null);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState(null);
+
+  const refetch = async () => {
+    if (
+      doctorId === null ||
+      doctorId === undefined ||
+      doctorId === ""
+    ) {
+      setSchedule(null);
+      setLoading(false);
+      setError(null);
+
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data =
+        await getDoctorSchedule(
+          doctorId
+        );
+
+      setSchedule(
+        data || null
+      );
+    } catch (err) {
+      console.error(
+        "GET DOCTOR SCHEDULE ERROR:",
+        err
+      );
+
+      setSchedule(null);
+
+      setError(
+        err?.message ||
+          "حدث خطأ أثناء تحميل أيام العمل"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await getSiteContent(section);
-        setContent(data);
-      } catch {
-        setContent(null);
-      }
-      setLoading(false);
-    })();
+    refetch();
+  }, [doctorId]);
+
+  return {
+    schedule,
+    loading,
+    error,
+    refetch,
+  };
+}
+
+/* =========================================================
+   STAFF
+========================================================= */
+
+export const useStaff =
+  () =>
+    useServiceFetch(
+      getStaff
+    );
+
+/* =========================================================
+   EQUIPMENT
+========================================================= */
+
+export const useEquipment =
+  () =>
+    useServiceFetch(
+      getEquipment
+    );
+
+/* =========================================================
+   PARTNERS
+========================================================= */
+
+export const usePartners =
+  () =>
+    useServiceFetch(
+      getPartners
+    );
+
+/* =========================================================
+   STATISTICS
+========================================================= */
+
+export const useStatistics =
+  () =>
+    useServiceFetch(
+      getStatistics
+    );
+
+/* =========================================================
+   APPOINTMENTS
+========================================================= */
+
+export const useAppointments =
+  () =>
+    useServiceFetch(
+      getAppointments
+    );
+
+/* =========================================================
+   PATIENTS
+========================================================= */
+
+export const usePatients =
+  () =>
+    useServiceFetch(
+      getPatients
+    );
+
+/* =========================================================
+   CONTACT MESSAGES
+========================================================= */
+
+export const useContactMessages =
+  () =>
+    useServiceFetch(
+      getContactMessages
+    );
+
+/* =========================================================
+   NOTIFICATIONS
+========================================================= */
+
+export const useNotifications =
+  () =>
+    useServiceFetch(
+      getNotifications
+    );
+
+/* =========================================================
+   TESTIMONIALS
+========================================================= */
+
+export const useTestimonials =
+  () => {
+    const [data] =
+      useState(
+        mockTestimonials
+      );
+
+    const [loading] =
+      useState(false);
+
+    return {
+      data,
+      loading,
+      error: null,
+      refetch: () => {},
+    };
+  };
+
+/* =========================================================
+   SITE CONTENT
+========================================================= */
+
+export function useSiteContent(
+  section
+) {
+  const [
+    content,
+    setContent,
+  ] = useState(null);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState(null);
+
+  useEffect(() => {
+    const loadContent =
+      async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+          const data =
+            await getSiteContent(
+              section
+            );
+
+          setContent(data);
+        } catch (err) {
+          console.error(
+            "GET SITE CONTENT ERROR:",
+            err
+          );
+
+          setContent(null);
+
+          setError(
+            err?.message ||
+              "حدث خطأ أثناء تحميل المحتوى"
+          );
+        } finally {
+          setLoading(false);
+        }
+      };
+
+    loadContent();
   }, [section]);
 
-  return { content, loading, setContent: (c) => setContent(c) };
-}
-
-export const useAllSiteContent = () => {
-  const [content, setContent] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const refetch = async () => {
-    setLoading(true);
-    try {
-      const data = await getAllSiteContent();
-      setContent(data);
-    } catch {
-      setContent([]);
-    }
-    setLoading(false);
+  return {
+    content,
+    loading,
+    error,
+    setContent,
   };
-
-  useEffect(() => {
-    refetch();
-  }, []);
-
-  return { content, loading, refetch };
 }
 
-export function useDoctorSchedule(doctorId) {
-  const [schedule, setSchedule] = useState(null);
-  const [loading, setLoading] = useState(true);
+/* =========================================================
+   ALL SITE CONTENT
+========================================================= */
 
-  const refetch = async () => {
-    if (!doctorId) { setSchedule(null); setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDoctorSchedule(doctorId);
-      setSchedule(data);
-    } catch {
-      setSchedule(null);
-    }
-    setLoading(false);
+export const useAllSiteContent =
+  () => {
+    const [
+      content,
+      setContent,
+    ] = useState([]);
+
+    const [
+      loading,
+      setLoading,
+    ] = useState(true);
+
+    const [
+      error,
+      setError,
+    ] = useState(null);
+
+    const refetch = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data =
+          await getAllSiteContent();
+
+        setContent(
+          Array.isArray(data)
+            ? data
+            : []
+        );
+      } catch (err) {
+        console.error(
+          "GET ALL SITE CONTENT ERROR:",
+          err
+        );
+
+        setContent([]);
+
+        setError(
+          err?.message ||
+            "حدث خطأ أثناء تحميل المحتوى"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      refetch();
+    }, []);
+
+    return {
+      content,
+      loading,
+      error,
+      refetch,
+    };
   };
-
-  useEffect(() => {
-    refetch();
-  }, [doctorId]);
-
-  return { schedule, loading, refetch };
-}
-
-export function useDoctorVacations(doctorId) {
-  const [vacations, setVacations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const refetch = async () => {
-    if (!doctorId) { setVacations([]); setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDoctorVacations(doctorId);
-      setVacations(data);
-    } catch {
-      setVacations([]);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    refetch();
-  }, [doctorId]);
-
-  return { vacations, loading, refetch };
-}
-

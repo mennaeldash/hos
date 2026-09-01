@@ -1,41 +1,292 @@
-import { mockStaff } from './mockData';
+import api from "./api";
 
-// TODO: Connect to backend API later
-// import API from './api';
+const BACKEND_URL = "http://rewaddashboard.runasp.net";
+
+/* ======================================================
+   IMAGE URL
+====================================================== */
+
+function getImageUrl(imageUrl) {
+  if (!imageUrl) return "";
+
+  if (
+    imageUrl.startsWith("http://") ||
+    imageUrl.startsWith("https://")
+  ) {
+    return imageUrl;
+  }
+
+  return `${BACKEND_URL}${
+    imageUrl.startsWith("/") ? "" : "/"
+  }${imageUrl}`;
+}
+
+/* ======================================================
+   NORMALIZE STAFF
+====================================================== */
+
+function normalizeStaff(member) {
+  if (!member) return null;
+
+  return {
+    id:
+      member.id ??
+      member.Id ??
+      null,
+
+    name:
+      member.name ??
+      member.Name ??
+      "",
+
+    position:
+      member.role ??
+      member.Role ??
+      "",
+
+    description:
+      member.description === "-" ||
+      member.Description === "-"
+        ? ""
+        : member.description ??
+          member.Description ??
+          "",
+
+    image_url: getImageUrl(
+      member.imageUrl ??
+        member.ImageUrl ??
+        member.image_url ??
+        ""
+    ),
+
+    imageUrl:
+      member.imageUrl ??
+      member.ImageUrl ??
+      null,
+  };
+}
+
+/* ======================================================
+   BUILD FORM DATA
+====================================================== */
+
+function buildStaffFormData(data) {
+  const formData = new FormData();
+
+  formData.append(
+    "Name",
+    String(data?.name || "").trim()
+  );
+
+  formData.append(
+    "Role",
+    String(data?.position || "").trim()
+  );
+
+  /*
+    الـ Backend عامل Description required.
+    لو المستخدم مسابش وصف نبعت "-"
+    وبعد GET نخفيها من الواجهة.
+  */
+
+  const description = String(
+    data?.description || ""
+  ).trim();
+
+  formData.append(
+    "Description",
+    description || "-"
+  );
+
+  /*
+    نبعت Image فقط لو المستخدم
+    اختار صورة جديدة من الجهاز.
+  */
+
+  if (data?.image_url instanceof File) {
+    formData.append(
+      "Image",
+      data.image_url
+    );
+  }
+
+  return formData;
+}
+
+/* ======================================================
+   GET ALL STAFF
+====================================================== */
 
 export async function getStaff() {
-  // TODO: Replace with API call
-  return [...mockStaff];
+  try {
+    const response = await api.get(
+      "/api/Staff"
+    );
+
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      return data
+        .map(normalizeStaff)
+        .filter(Boolean);
+    }
+
+    if (Array.isArray(data?.data)) {
+      return data.data
+        .map(normalizeStaff)
+        .filter(Boolean);
+    }
+
+    return [];
+  } catch (error) {
+    console.error(
+      "Failed to fetch staff:",
+      error?.response?.data || error
+    );
+
+    throw error;
+  }
 }
 
-export async function getStaffMember(id) {
-  // TODO: Replace with API call
-  return mockStaff.find((s) => s.id === id) || null;
+/* ======================================================
+   GET STAFF BY ID
+====================================================== */
+
+export async function getStaffById(id) {
+  if (
+    id === null ||
+    id === undefined ||
+    id === ""
+  ) {
+    throw new Error(
+      "Staff id is required"
+    );
+  }
+
+  try {
+    const response = await api.get(
+      `/api/Staff/${id}`
+    );
+
+    return normalizeStaff(
+      response.data?.data ??
+        response.data
+    );
+  } catch (error) {
+    console.error(
+      "Failed to fetch staff member:",
+      error?.response?.data || error
+    );
+
+    throw error;
+  }
 }
+
+/* ======================================================
+   CREATE STAFF
+====================================================== */
 
 export async function createStaff(data) {
-  // TODO: Replace with API call
-  const newItem = { ...data, id: String(Date.now()), created_at: new Date().toISOString() };
-  mockStaff.push(newItem);
-  return newItem;
+  try {
+    const formData =
+      buildStaffFormData(data);
+
+    const response = await api.post(
+      "/api/Staff",
+      formData
+    );
+
+    console.log(
+      "CREATE STAFF RESPONSE:",
+      response.data
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Failed to create staff:",
+      error?.response?.data || error
+    );
+
+    throw error;
+  }
 }
 
-export async function updateStaff(id, data) {
-  // TODO: Replace with API call
-  const index = mockStaff.findIndex((s) => s.id === id);
-  if (index !== -1) {
-    mockStaff[index] = { ...mockStaff[index], ...data };
-    return mockStaff[index];
+/* ======================================================
+   UPDATE STAFF
+====================================================== */
+
+export async function updateStaff(
+  id,
+  data
+) {
+  if (
+    id === null ||
+    id === undefined ||
+    id === ""
+  ) {
+    throw new Error(
+      "Staff id is required"
+    );
   }
-  return null;
+
+  try {
+    const formData =
+      buildStaffFormData(data);
+
+    const response = await api.put(
+      `/api/Staff/${id}`,
+      formData
+    );
+
+    console.log(
+      "UPDATE STAFF RESPONSE:",
+      response.data
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Failed to update staff:",
+      error?.response?.data || error
+    );
+
+    throw error;
+  }
 }
+
+/* ======================================================
+   DELETE STAFF
+====================================================== */
 
 export async function deleteStaff(id) {
-  // TODO: Replace with API call
-  const index = mockStaff.findIndex((s) => s.id === id);
-  if (index !== -1) {
-    mockStaff.splice(index, 1);
-    return true;
+  if (
+    id === null ||
+    id === undefined ||
+    id === ""
+  ) {
+    throw new Error(
+      "Staff id is required"
+    );
   }
-  return false;
+
+  try {
+    const response = await api.delete(
+      `/api/Staff/${id}`
+    );
+
+    console.log(
+      "DELETE STAFF RESPONSE:",
+      response.data
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Failed to delete staff:",
+      error?.response?.data || error
+    );
+
+    throw error;
+  }
 }

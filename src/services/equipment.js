@@ -8,11 +8,6 @@ export async function getEquipment() {
   return [...mockEquipment];
 }
 
-export async function getEquipmentItem(id) {
-  // TODO: Replace with API call
-  return mockEquipment.find((e) => e.id === id) || null;
-}
-
 export async function createEquipment(data) {
   // TODO: Replace with API call
   const newItem = { ...data, id: String(Date.now()), created_at: new Date().toISOString() };

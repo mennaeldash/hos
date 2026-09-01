@@ -9,18 +9,6 @@ export async function getPatients() {
   return [...mockPatients];
 }
 
-/** Get a single patient by ID */
-export async function getPatient(id) {
-  // TODO: Replace with API call
-  return mockPatients.find((p) => p.id === id) || null;
-}
-
-/** Find patient by phone */
-export async function findPatientByPhone(phone) {
-  // TODO: Replace with API call
-  return mockPatients.find((p) => p.phone === phone) || null;
-}
-
 /** Create a new patient */
 export async function createPatient(data) {
   // TODO: Replace with API call

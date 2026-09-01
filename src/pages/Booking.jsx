@@ -5,6 +5,29 @@ import BookingWizard from '@/components/BookingWizard';
 import { getDoctor } from '@/services/doctors';
 import { getDepartment } from '@/services/departments';
 
+const physicalTherapyDoctorLookup = {
+  'physical-therapy-1': {
+    id: 'physical-therapy-1',
+    name: 'د/ حسام عادل الهاين',
+    specialty: 'أخصائي العلاج الطبيعي لأمراض العظام والعضلات والمفاصل والعمود الفقري',
+    qualification: 'ماجستير العلاج الطبيعي',
+    bio: 'أخصائي العلاج الطبيعي بمستشفى 1 أكتوبر العسكري سابقاً',
+    image_url: '',
+    department_id: 'physical-therapy',
+    status: 'active',
+    is_deleted: false,
+    working_days: ['saturday', 'wednesday'],
+  },
+};
+
+const physicalTherapyDepartment = {
+  id: 'physical-therapy',
+  name: 'العلاج الطبيعي',
+  description: 'رعاية متخصصة لاستعادة الحركة وتحسين الوظائف الجسدية بأحدث أساليب العلاج الطبيعي والتأهيل.',
+  icon: 'stethoscope',
+  slug: 'physical-therapy',
+};
+
 export default function Booking() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -24,7 +47,11 @@ export default function Booking() {
         return;
       }
 
-      const doc = await getDoctor(doctorId);
+      let doc = await getDoctor(doctorId);
+
+      if (!doc) {
+        doc = physicalTherapyDoctorLookup[doctorId] || null;
+      }
 
       if (!doc) {
         setError('الطبيب غير موجود.');
@@ -36,7 +63,12 @@ export default function Booking() {
 
       const targetDeptId = deptId || doc.department_id;
       if (targetDeptId) {
-        const dept = await getDepartment(targetDeptId);
+        let dept = await getDepartment(targetDeptId);
+
+        if (!dept && targetDeptId === 'physical-therapy') {
+          dept = physicalTherapyDepartment;
+        }
+
         if (dept) setDepartment(dept);
       }
 

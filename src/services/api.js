@@ -1,14 +1,44 @@
-// TODO: Configure base URL and Axios/Fetch instance when backend is ready
-// Example:
-// import axios from 'axios';
-// const API = axios.create({ baseURL: 'http://localhost:5000/api' });
+// import axios from "axios";
 
-/**
- * Base API configuration placeholder
- * Replace this file with actual API setup when connecting to backend
- */
+// console.log(
+//   "API BASE URL:",
+//   import.meta.env.VITE_API_BASE_URL
+// );
 
-export const API_BASE_URL = '';
+// const api = axios.create({
+//   baseURL: import.meta.env.VITE_API_BASE_URL,
+//   headers: {
+//     Accept: "application/json",
+//   },
+// });
 
-// TODO: Create and export configured Axios instance or fetch wrapper
-// export default API;
+// export default api;
+
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  headers: {
+    Accept: "application/json",
+  },
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token =
+      localStorage.getItem(
+        "adminToken"
+      );
+
+    if (token) {
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    return config;
+  },
+  (error) =>
+    Promise.reject(error)
+);
+
+export default api;

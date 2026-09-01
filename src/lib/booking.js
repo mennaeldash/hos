@@ -1,5 +1,3 @@
-import { isSlotBooked } from '@/services/appointments';
-
 export const WEEK_DAYS = [
   { key: 'saturday', label: 'السبت' },
   { key: 'sunday', label: 'الأحد' },
@@ -31,8 +29,6 @@ function minutesToTime(minutes) {
 
 export function generateSlots(schedule) {
   const slots = [];
-  const start = timeToMinutes(schedule.start_time);
-  const end = timeToMinutes(schedule.end_time);
   const duration = schedule.slot_duration;
 
   for (let t = start; t + duration <= end; t += duration) {
@@ -79,7 +75,6 @@ export function isDoctorActive(doctor) {
 
 export async function getBookedSlots(doctorId, dateStr) {
   // TODO: Replace with backend API call
-  // This is handled by isSlotBooked service function
   const { getAppointments } = await import('@/services/appointments');
   const allApts = await getAppointments();
   return allApts

@@ -9,12 +9,6 @@ export async function getAppointments() {
   return [...mockAppointments];
 }
 
-/** Get a single appointment by ID */
-export async function getAppointment(id) {
-  // TODO: Replace with API call
-  return mockAppointments.find((a) => a.id === id) || null;
-}
-
 /** Create a new appointment */
 export async function createAppointment(data) {
   // TODO: Replace with: return API.post('/appointments', data).then(res => res.data);
@@ -65,12 +59,6 @@ export async function deleteAppointment(id) {
 export async function getAppointmentsByPatient(patientId) {
   // TODO: Replace with API call
   return mockAppointments.filter((a) => a.patient_id === patientId);
-}
-
-/** Get appointments for a specific date */
-export async function getAppointmentsByDate(dateStr) {
-  // TODO: Replace with API call
-  return mockAppointments.filter((a) => a.appointment_date === dateStr);
 }
 
 /** Check if a time slot is booked */
