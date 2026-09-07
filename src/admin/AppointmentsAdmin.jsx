@@ -28,6 +28,10 @@ import {
   getAppointments,
 } from "@/services/appointments";
 
+import {
+  canManageContent,
+} from "@/lib/permissions";
+
 const PAGE_SIZE = 10;
 
 /* =========================================================
@@ -71,6 +75,13 @@ const sameId = (
 ========================================================= */
 
 export default function AppointmentsAdmin() {
+  /* =======================================================
+     PERMISSIONS
+  ======================================================= */
+
+  const canDeleteAppointments =
+    canManageContent();
+
   /* =======================================================
      DEPARTMENTS
   ======================================================= */
@@ -537,6 +548,10 @@ export default function AppointmentsAdmin() {
 
   const handleDelete =
     async (id) => {
+      if (!canDeleteAppointments) {
+        return;
+      }
+
       const confirmed =
         window.confirm(
           "هل أنت متأكد من حذف هذا الموعد؟"
@@ -1450,18 +1465,20 @@ export default function AppointmentsAdmin() {
         الهاتف
       </th>
 
-      {/* DELETE */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-        "
-      >
-        حذف
-      </th>
+      {/* DELETE - ADMIN ONLY */}
+      {canDeleteAppointments && (
+        <th
+          className="
+            p-4
+            text-center
+            font-bold
+            text-slate-700
+            text-sm
+          "
+        >
+          حذف
+        </th>
+      )}
 
     </tr>
   </thead>
@@ -1560,31 +1577,33 @@ export default function AppointmentsAdmin() {
           {appointment.phone || "-"}
         </td>
 
-        {/* DELETE */}
-        <td className="p-4 text-center">
-          <button
-            type="button"
-            onClick={() =>
-              handleDelete(appointment.id)
-            }
-            title="حذف الموعد"
-            className="
-              inline-flex
-              items-center
-              justify-center
-              w-9
-              h-9
-              rounded-xl
-              bg-error-50
-              text-error-600
-              hover:bg-error-600
-              hover:text-white
-              transition-all
-            "
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </td>
+        {/* DELETE - ADMIN ONLY */}
+        {canDeleteAppointments && (
+          <td className="p-4 text-center">
+            <button
+              type="button"
+              onClick={() =>
+                handleDelete(appointment.id)
+              }
+              title="حذف الموعد"
+              className="
+                inline-flex
+                items-center
+                justify-center
+                w-9
+                h-9
+                rounded-xl
+                bg-error-50
+                text-error-600
+                hover:bg-error-600
+                hover:text-white
+                transition-all
+              "
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </td>
+        )}
 
       </tr>
     ))}

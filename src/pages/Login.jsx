@@ -33,8 +33,18 @@ const handleSubmit = async (event) => {
       return;
     }
 
-    localStorage.setItem("adminToken", data.token);
+localStorage.setItem(
+  "adminToken",
+  data.token
+);
 
+
+if (data.role) {
+  localStorage.setItem(
+    "adminRole",
+    data.role
+  );
+}
     navigate("/admin", {
       replace: true,
       state: { authenticated: true },

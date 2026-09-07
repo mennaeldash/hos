@@ -1,4 +1,8 @@
-import { useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   CheckCircle,
@@ -8,6 +12,7 @@ import {
   X,
   Building2,
   Stethoscope,
+  CalendarDays,
 } from "lucide-react";
 
 import {
@@ -19,21 +24,212 @@ import {
 } from "@/services/notifications";
 
 import {
-  useDoctorSchedule,
-} from "@/lib/hooks";
+  getDoctor,
+} from "@/services/doctors";
 
 /* =========================================================
    DAYS
 ========================================================= */
 
-const dayLabels = {
-  saturday: "السبت",
+const DAY_LABELS = {
+  0: "الأحد",
+  1: "الاثنين",
+  2: "الثلاثاء",
+  3: "الأربعاء",
+  4: "الخميس",
+  5: "الجمعة",
+  6: "السبت",
+
   sunday: "الأحد",
-  monday: "الإثنين",
+  monday: "الاثنين",
   tuesday: "الثلاثاء",
   wednesday: "الأربعاء",
   thursday: "الخميس",
   friday: "الجمعة",
+  saturday: "السبت",
+};
+
+/* =========================================================
+   WORKING DAYS HELPERS
+========================================================= */
+
+const getArabicDay = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return "";
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null
+  ) {
+    const dayId =
+      value.id ??
+      value.Id ??
+      value.dayId ??
+      value.DayId;
+
+    if (
+      dayId !== null &&
+      dayId !== undefined &&
+      DAY_LABELS[Number(dayId)]
+    ) {
+      return DAY_LABELS[Number(dayId)];
+    }
+
+    const dayName =
+      value.name ??
+      value.Name ??
+      value.day ??
+      value.Day ??
+      value.dayName ??
+      value.DayName ??
+      "";
+
+    return getArabicDay(
+      dayName
+    );
+  }
+
+  const numericValue =
+    Number(value);
+
+  if (
+    Number.isInteger(
+      numericValue
+    ) &&
+    numericValue >= 0 &&
+    numericValue <= 6
+  ) {
+    return DAY_LABELS[
+      numericValue
+    ];
+  }
+
+  const normalized =
+    String(value)
+      .trim()
+      .toLowerCase();
+
+  return (
+    DAY_LABELS[
+      normalized
+    ] ||
+    String(value)
+  );
+};
+
+const normalizeDaysArray = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return [];
+  }
+
+  if (
+    Array.isArray(value)
+  ) {
+    return value;
+  }
+
+  if (
+    typeof value === "string"
+  ) {
+    return value
+      .split(/[,|;]+/)
+      .map(
+        (item) =>
+          item.trim()
+      )
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const getDoctorWorkingDays = (
+  doctor
+) => {
+  if (!doctor) {
+    return [];
+  }
+
+  const rawDays =
+    doctor.workingDays ??
+    doctor.WorkingDays ??
+    doctor.working_days ??
+    doctor.days ??
+    doctor.Days ??
+    doctor.workingDayIds ??
+    doctor.WorkingDayIds ??
+    doctor.workingDaysIds ??
+    doctor.WorkingDaysIds ??
+    [];
+
+  const labels =
+    normalizeDaysArray(
+      rawDays
+    )
+      .map(
+        getArabicDay
+      )
+      .filter(Boolean);
+
+  return [
+    ...new Set(
+      labels
+    ),
+  ];
+};
+
+/* =========================================================
+   DOCTOR STATUS
+========================================================= */
+
+const isDoctorAvailable = (
+  status
+) => {
+  if (
+    status === null ||
+    status === undefined ||
+    status === ""
+  ) {
+    return true;
+  }
+
+  const numericStatus =
+    Number(status);
+
+  if (
+    numericStatus === 0
+  ) {
+    return true;
+  }
+
+  if (
+    numericStatus === 1
+  ) {
+    return false;
+  }
+
+  const normalized =
+    String(status)
+      .trim()
+      .toLowerCase();
+
+  return (
+    normalized ===
+      "active" ||
+    normalized ===
+      "نشط" ||
+    normalized ===
+      "متاح"
+  );
 };
 
 /* =========================================================
@@ -46,36 +242,166 @@ export default function BookingWizard({
   onClose,
 }) {
   /* =======================================================
-     DOCTOR WORKING DAYS
+     DOCTOR DETAILS
   ======================================================= */
 
-  const {
-    schedule,
-    loading: scheduleLoading,
-  } = useDoctorSchedule(
-    doctor?.id
-  );
+  const [
+    doctorDetails,
+    setDoctorDetails,
+  ] = useState(null);
+
+  const [
+    doctorLoading,
+    setDoctorLoading,
+  ] = useState(true);
+
+  const [
+    doctorError,
+    setDoctorError,
+  ] = useState(null);
+
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    const loadDoctor =
+      async () => {
+        if (
+          doctor?.id === null ||
+          doctor?.id === undefined ||
+          doctor?.id === ""
+        ) {
+          setDoctorDetails(
+            doctor ||
+              null
+          );
+
+          setDoctorLoading(
+            false
+          );
+
+          return;
+        }
+
+        try {
+          setDoctorLoading(
+            true
+          );
+
+          setDoctorError(
+            null
+          );
+
+          const details =
+            await getDoctor(
+              doctor.id
+            );
+
+          console.log(
+            "BOOKING DOCTOR DETAILS:",
+            details
+          );
+
+          if (
+            !cancelled
+          ) {
+            setDoctorDetails(
+              details ||
+                doctor
+            );
+          }
+        } catch (err) {
+          console.error(
+            "GET DOCTOR DETAILS ERROR:",
+            err
+          );
+
+          if (
+            !cancelled
+          ) {
+            setDoctorDetails(
+              doctor ||
+                null
+            );
+
+            setDoctorError(
+              "تعذر تحميل حالة وأيام عمل الطبيب حالياً."
+            );
+          }
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setDoctorLoading(
+              false
+            );
+          }
+        }
+      };
+
+    loadDoctor();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    doctor?.id,
+  ]);
+
+  /* =======================================================
+     CURRENT DOCTOR
+  ======================================================= */
+
+  const currentDoctor =
+    doctorDetails ||
+    doctor ||
+    {};
+
+  /* =======================================================
+     STATUS
+  ======================================================= */
+
+  const doctorStatus =
+    currentDoctor.status ??
+    currentDoctor.Status ??
+    "";
+
+  const doctorAvailable =
+    isDoctorAvailable(
+      doctorStatus
+    );
+
+  /* =======================================================
+     WORKING DAYS
+  ======================================================= */
 
   const workingDays =
-    Array.isArray(
-      schedule?.working_days
-    )
-      ? schedule.working_days
-      : [];
+    useMemo(
+      () =>
+        getDoctorWorkingDays(
+          currentDoctor
+        ),
+      [
+        currentDoctor,
+      ]
+    );
 
   /* =======================================================
      FORM
   ======================================================= */
 
-  const [form, setForm] =
-    useState({
-      full_name: "",
-      phone: "",
-      email: "",
-      gender: "",
-      age: "",
-      notes: "",
-    });
+  const [
+    form,
+    setForm,
+  ] = useState({
+    full_name: "",
+    phone: "",
+    email: "",
+    gender: "",
+    age: "",
+    notes: "",
+  });
 
   const [
     submitting,
@@ -109,11 +435,17 @@ export default function BookingWizard({
   ======================================================= */
 
   const canSubmit =
-    form.full_name.trim() !== "" &&
-    form.phone.trim() !== "";
+    form.full_name
+      .trim() !==
+      "" &&
+    form.phone
+      .trim() !==
+      "" &&
+    doctorAvailable &&
+    !doctorLoading;
 
   /* =======================================================
-     INPUT CHANGE
+     CHANGE
   ======================================================= */
 
   const handleInputChange = (
@@ -121,16 +453,19 @@ export default function BookingWizard({
     value
   ) => {
     setForm(
-      (previousForm) => ({
+      (
+        previousForm
+      ) => ({
         ...previousForm,
 
-        [field]: value,
+        [field]:
+          value,
       })
     );
   };
 
   /* =======================================================
-     CONFIRM BOOKING
+     CONFIRM
   ======================================================= */
 
   const handleConfirm =
@@ -142,24 +477,37 @@ export default function BookingWizard({
         return;
       }
 
-      setSubmitting(true);
+      if (
+        !doctorAvailable
+      ) {
+        setError(
+          "هذا الطبيب غير متاح للحجز حالياً."
+        );
 
-      setError(null);
+        return;
+      }
+
+      setSubmitting(
+        true
+      );
+
+      setError(
+        null
+      );
 
       try {
-        /* ===============================================
-           CREATE APPOINTMENT
-        =============================================== */
-
         await createAppointment({
           full_name:
-            form.full_name.trim(),
+            form.full_name
+              .trim(),
 
           phone:
-            form.phone.trim(),
+            form.phone
+              .trim(),
 
           email:
-            form.email.trim() ||
+            form.email
+              .trim() ||
             null,
 
           age:
@@ -175,6 +523,8 @@ export default function BookingWizard({
             "",
 
           doctor:
+            currentDoctor?.name ||
+            currentDoctor?.fullName ||
             doctor?.name ||
             "",
 
@@ -183,19 +533,14 @@ export default function BookingWizard({
             null,
 
           doctor_id:
+            currentDoctor?.id ??
             doctor?.id ??
             null,
 
           notes:
-            form.notes.trim() ||
+            form.notes
+              .trim() ||
             null,
-
-          /*
-            مفيش Calendar حالياً.
-
-            المستشفى هتتواصل مع المريض
-            لتحديد اليوم والساعة.
-          */
 
           appointment_date:
             null,
@@ -207,10 +552,6 @@ export default function BookingWizard({
             "pending",
         });
 
-        /* ===============================================
-           NOTIFICATION
-        =============================================== */
-
         try {
           await createNotification({
             type:
@@ -221,24 +562,24 @@ export default function BookingWizard({
 
             message:
               `طلب حجز جديد: ${form.full_name.trim()} مع ${
-                doctor?.name || "الطبيب"
+                currentDoctor?.name ||
+                currentDoctor?.fullName ||
+                doctor?.name ||
+                "الطبيب"
               }`,
           });
         } catch (
           notificationError
         ) {
-          /*
-            لو الإشعار فشل،
-            ما نعتبرش الحجز نفسه فشل.
-          */
-
           console.error(
             "Notification error:",
             notificationError
           );
         }
 
-        setConfirmed(true);
+        setConfirmed(
+          true
+        );
       } catch (err) {
         console.error(
           "Booking error:",
@@ -249,7 +590,9 @@ export default function BookingWizard({
           "حدث خطأ أثناء إرسال طلب الحجز. يرجى المحاولة مرة أخرى."
         );
       } finally {
-        setSubmitting(false);
+        setSubmitting(
+          false
+        );
       }
     };
 
@@ -271,39 +614,26 @@ export default function BookingWizard({
         <div
           className="
             bg-white
-
             rounded-3xl
-
             max-w-lg
             w-full
-
             p-8
             md:p-12
-
             text-center
-
             animate-scale-in
-
             shadow-xl
           "
         >
-          {/* SUCCESS ICON */}
-
           <div
             className="
               w-24
               h-24
-
               mx-auto
-
               rounded-full
-
               bg-success-100
-
               flex
               items-center
               justify-center
-
               mb-6
             "
           >
@@ -311,22 +641,16 @@ export default function BookingWizard({
               className="
                 w-12
                 h-12
-
                 text-success-600
               "
             />
           </div>
 
-          {/* TITLE */}
-
           <h2
             className="
               text-2xl
-
               font-extrabold
-
               text-slate-800
-
               mb-3
             "
           >
@@ -336,169 +660,117 @@ export default function BookingWizard({
           <p
             className="
               text-slate-600
-
               mb-6
             "
           >
             تم تسجيل بياناتك، وسوف يتم
-            التواصل معك لتأكيد موعد الحجز
-            .
+            التواصل معك لتأكيد موعد الحجز.
           </p>
-
-          {/* DETAILS */}
 
           <div
             className="
               bg-slate-50
-
               rounded-2xl
-
               p-5
-
               mb-6
-
               text-right
-
               space-y-3
             "
           >
-            {/* DOCTOR */}
-
-            <div
-              className="
-                flex
-                justify-between
-                items-center
-                gap-4
-              "
-            >
-              <span
-                className="
-                  text-slate-500
-                  text-sm
-                "
-              >
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
                 الطبيب
               </span>
 
-              <span
-                className="
-                  font-bold
-                  text-slate-800
-                  text-sm
-                "
-              >
-                {doctor?.name}
+              <span className="font-bold text-slate-800 text-sm">
+                {currentDoctor?.name ||
+                  currentDoctor?.fullName ||
+                  doctor?.name}
               </span>
             </div>
 
-            {/* DEPARTMENT */}
-
-            <div
-              className="
-                flex
-                justify-between
-                items-center
-                gap-4
-              "
-            >
-              <span
-                className="
-                  text-slate-500
-                  text-sm
-                "
-              >
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
                 القسم
               </span>
 
-              <span
-                className="
-                  font-bold
-                  text-slate-800
-                  text-sm
-                "
-              >
+              <span className="font-bold text-slate-800 text-sm">
                 {department?.name}
               </span>
             </div>
 
-            {/* PATIENT */}
-
-            <div
-              className="
-                flex
-                justify-between
-                items-center
-                gap-4
-              "
-            >
-              <span
+            {workingDays.length >
+              0 && (
+              <div
                 className="
-                  text-slate-500
-                  text-sm
+                  flex
+                  justify-between
+                  items-start
+                  gap-4
                 "
               >
+                <span className="text-slate-500 text-sm shrink-0">
+                  أيام العمل
+                </span>
+
+                <div
+                  className="
+                    flex
+                    flex-wrap
+                    justify-end
+                    gap-1.5
+                  "
+                >
+                  {workingDays.map(
+                    (
+                      day,
+                      index
+                    ) => (
+                      <span
+                        key={`${day}-${index}`}
+                        className="
+                          px-2.5
+                          py-1
+                          rounded-lg
+                          bg-primary-100
+                          text-primary-700
+                          text-xs
+                          font-bold
+                        "
+                      >
+                        {day}
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
                 المريض
               </span>
 
-              <span
-                className="
-                  font-bold
-                  text-slate-800
-                  text-sm
-                "
-              >
+              <span className="font-bold text-slate-800 text-sm">
                 {form.full_name}
               </span>
             </div>
 
-            {/* PHONE */}
-
-            <div
-              className="
-                flex
-                justify-between
-                items-center
-                gap-4
-              "
-            >
-              <span
-                className="
-                  text-slate-500
-                  text-sm
-                "
-              >
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
                 الهاتف
               </span>
 
               <span
-                className="
-                  font-bold
-                  text-slate-800
-                  text-sm
-                "
+                className="font-bold text-slate-800 text-sm"
                 dir="ltr"
               >
                 {form.phone}
               </span>
             </div>
 
-            {/* STATUS */}
-
-            <div
-              className="
-                flex
-                justify-between
-                items-center
-                gap-4
-              "
-            >
-              <span
-                className="
-                  text-slate-500
-                  text-sm
-                "
-              >
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
                 حالة الطلب
               </span>
 
@@ -506,11 +778,8 @@ export default function BookingWizard({
                 className="
                   px-3
                   py-1
-
                   rounded-lg
-
                   bg-amber-100
-
                   text-amber-700
                   text-xs
                   font-bold
@@ -523,7 +792,9 @@ export default function BookingWizard({
 
           <button
             type="button"
-            onClick={onClose}
+            onClick={
+              onClose
+            }
             className="
               btn
               btn-primary
@@ -545,31 +816,22 @@ export default function BookingWizard({
     <div
       className="
         bg-white
-
         rounded-3xl
-
         shadow-xl
-
         max-w-2xl
         w-full
-
         mx-auto
-
         overflow-hidden
       "
     >
-      {/* =================================================
-          HEADER
-      ================================================== */}
+      {/* HEADER */}
 
       <div
         className="
           bg-gradient-to-l
           from-primary-600
           to-secondary-600
-
           p-6
-
           text-white
         "
       >
@@ -578,7 +840,6 @@ export default function BookingWizard({
             flex
             items-center
             justify-between
-
             mb-4
           "
         >
@@ -593,17 +854,17 @@ export default function BookingWizard({
 
           <button
             type="button"
-            onClick={onClose}
-            disabled={submitting}
+            onClick={
+              onClose
+            }
+            disabled={
+              submitting
+            }
             className="
               p-2
-
               rounded-xl
-
               hover:bg-white/10
-
               transition-all
-
               disabled:opacity-50
             "
             aria-label="إغلاق"
@@ -612,8 +873,6 @@ export default function BookingWizard({
           </button>
         </div>
 
-        {/* DEPARTMENT + DOCTOR */}
-
         <div
           className="
             grid
@@ -621,16 +880,11 @@ export default function BookingWizard({
             gap-4
           "
         >
-          {/* DEPARTMENT */}
-
           <div
             className="
               bg-white/10
-
               backdrop-blur-md
-
               rounded-2xl
-
               p-4
             "
           >
@@ -639,19 +893,12 @@ export default function BookingWizard({
                 flex
                 items-center
                 gap-2
-
                 text-white/70
                 text-xs
-
                 mb-1
               "
             >
-              <Building2
-                className="
-                  w-4
-                  h-4
-                "
-              />
+              <Building2 className="w-4 h-4" />
 
               القسم
             </div>
@@ -666,16 +913,11 @@ export default function BookingWizard({
             </p>
           </div>
 
-          {/* DOCTOR */}
-
           <div
             className="
               bg-white/10
-
               backdrop-blur-md
-
               rounded-2xl
-
               p-4
             "
           >
@@ -684,19 +926,12 @@ export default function BookingWizard({
                 flex
                 items-center
                 gap-2
-
                 text-white/70
                 text-xs
-
                 mb-1
               "
             >
-              <Stethoscope
-                className="
-                  w-4
-                  h-4
-                "
-              />
+              <Stethoscope className="w-4 h-4" />
 
               الطبيب
             </div>
@@ -707,33 +942,36 @@ export default function BookingWizard({
                 text-lg
               "
             >
-              {doctor?.name}
+              {currentDoctor?.name ||
+                currentDoctor?.fullName ||
+                doctor?.name}
             </p>
 
-            {doctor?.specialty && (
+            {(currentDoctor?.specialty ||
+              currentDoctor?.specialization ||
+              doctor?.specialty) && (
               <p
                 className="
                   text-xs
                   text-white/70
                 "
               >
-                {doctor.specialty}
+                {currentDoctor?.specialty ||
+                  currentDoctor?.specialization ||
+                  doctor?.specialty}
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* =================================================
-          PATIENT DATA TITLE
-      ================================================== */}
+      {/* PATIENT TITLE */}
 
       <div
         className="
           px-6
           pt-6
           pb-4
-
           border-b
           border-slate-100
         "
@@ -749,27 +987,17 @@ export default function BookingWizard({
             className="
               w-10
               h-10
-
               rounded-2xl
-
               bg-primary-600
-
               text-white
-
               flex
               items-center
               justify-center
-
               shadow-lg
               shadow-primary-500/30
             "
           >
-            <User
-              className="
-                w-5
-                h-5
-              "
-            />
+            <User className="w-5 h-5" />
           </div>
 
           <div>
@@ -789,33 +1017,25 @@ export default function BookingWizard({
                 mt-1
               "
             >
-              أدخل بياناتك وسوف نتواصل
-              معك لتحديد الموعد
+              أدخل بياناتك وسوف نتواصل معك
+              لتحديد الموعد
             </p>
           </div>
         </div>
       </div>
 
-      {/* =================================================
-          FORM CONTENT
-      ================================================== */}
+      {/* FORM */}
 
       <div className="p-6">
-        {/* ERROR */}
 
         {error && (
           <div
             className="
               bg-error-50
-
               text-error-700
-
               p-4
-
               rounded-xl
-
               mb-5
-
               text-sm
               font-bold
             "
@@ -830,23 +1050,17 @@ export default function BookingWizard({
             animate-fade-in
           "
         >
-          {/* =============================================
-              DOCTOR WORKING DAYS
-          ============================================== */}
+          {/* DOCTOR INFO */}
 
-          {scheduleLoading ? (
+          {doctorLoading ? (
             <div
               className="
                 bg-slate-50
-
                 rounded-2xl
-
                 p-4
-
                 flex
                 items-center
                 gap-2
-
                 text-sm
                 text-slate-500
               "
@@ -855,108 +1069,193 @@ export default function BookingWizard({
                 className="
                   w-4
                   h-4
-
                   animate-spin
-
                   text-primary-600
                 "
               />
 
-              جاري تحميل أيام العمل...
-            </div>
-          ) : workingDays.length > 0 ? (
-            <div
-              className="
-                bg-slate-50
-
-                rounded-2xl
-
-                p-4
-              "
-            >
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-2
-
-                  text-sm
-                  font-bold
-                  text-slate-700
-
-                  mb-3
-                "
-              >
-                <span
-                  className="
-                    inline-flex
-
-                    h-2
-                    w-2
-
-                    rounded-full
-
-                    bg-primary-500
-                  "
-                />
-
-                أيام عمل الطبيب
-              </div>
-
-              <div
-                className="
-                  flex
-                  flex-wrap
-                  gap-2
-                "
-              >
-                {workingDays.map(
-                  (day) => (
-                    <span
-                      key={day}
-                      className="
-                        px-3
-                        py-1.5
-
-                        rounded-lg
-
-                        bg-primary-100
-
-                        text-primary-700
-
-                        text-sm
-                        font-bold
-                      "
-                    >
-                      {dayLabels[day] ||
-                        day}
-                    </span>
-                  )
-                )}
-              </div>
+              جاري تحميل بيانات الطبيب...
             </div>
           ) : (
             <div
               className="
                 bg-slate-50
-
                 rounded-2xl
-
                 p-4
-
-                text-sm
-
-                text-slate-500
+                space-y-4
               "
             >
-              لم يتم تحديد أيام عمل هذا
-              الطبيب حالياً.
+              {/* STATUS */}
+
+              <div
+                className="
+                  flex
+                  items-center
+                  justify-between
+                  gap-3
+                "
+              >
+                <span
+                  className="
+                    text-sm
+                    font-bold
+                    text-slate-700
+                  "
+                >
+                  حالة الطبيب
+                </span>
+
+                {doctorAvailable ? (
+                  <span
+                    className="
+                      inline-flex
+                      items-center
+                      gap-1.5
+                      px-3
+                      py-1.5
+                      rounded-full
+                      bg-green-100
+                      text-green-700
+                      text-xs
+                      font-extrabold
+                    "
+                  >
+                    <CheckCircle className="w-4 h-4" />
+
+                    متاح
+                  </span>
+                ) : (
+                  <span
+                    className="
+                      inline-flex
+                      items-center
+                      gap-1.5
+                      px-3
+                      py-1.5
+                      rounded-full
+                      bg-red-100
+                      text-red-700
+                      text-xs
+                      font-extrabold
+                    "
+                  >
+                    <X className="w-4 h-4" />
+
+                    غير متاح حالياً
+                  </span>
+                )}
+              </div>
+
+              {/* WORKING DAYS */}
+
+              {workingDays.length >
+              0 ? (
+                <div
+                  className="
+                    border-t
+                    border-slate-200
+                    pt-4
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      text-sm
+                      font-bold
+                      text-slate-700
+                      mb-3
+                    "
+                  >
+                    <CalendarDays
+                      className="
+                        w-4
+                        h-4
+                        text-primary-600
+                      "
+                    />
+
+                    أيام عمل الطبيب
+                  </div>
+
+                  <div
+                    className="
+                      flex
+                      flex-wrap
+                      gap-2
+                    "
+                  >
+                    {workingDays.map(
+                      (
+                        day,
+                        index
+                      ) => (
+                        <span
+                          key={`${day}-${index}`}
+                          className="
+                            px-3
+                            py-1.5
+                            rounded-lg
+                            bg-primary-100
+                            text-primary-700
+                            text-sm
+                            font-bold
+                          "
+                        >
+                          {day}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className="
+                    border-t
+                    border-slate-200
+                    pt-4
+                    text-sm
+                    text-slate-500
+                  "
+                >
+                  لم يتم تحديد أيام عمل هذا الطبيب حالياً.
+                </div>
+              )}
+
+              {doctorError && (
+                <p
+                  className="
+                    text-xs
+                    text-amber-600
+                  "
+                >
+                  {doctorError}
+                </p>
+              )}
+
             </div>
           )}
 
-          {/* =============================================
-              NAME + PHONE
-          ============================================== */}
+          {!doctorLoading &&
+            !doctorAvailable && (
+              <div
+                className="
+                  rounded-2xl
+                  border
+                  border-red-200
+                  bg-red-50
+                  p-4
+                  text-sm
+                  font-bold
+                  text-red-700
+                "
+              >
+                الطبيب غير متاح للحجز حالياً.
+              </div>
+            )}
+
+          {/* NAME + PHONE */}
 
           <div
             className="
@@ -993,7 +1292,8 @@ export default function BookingWizard({
                 }
                 placeholder="أدخل اسمك الكامل"
                 disabled={
-                  submitting
+                  submitting ||
+                  !doctorAvailable
                 }
               />
             </div>
@@ -1027,15 +1327,14 @@ export default function BookingWizard({
                 placeholder="01xxxxxxxxx"
                 dir="ltr"
                 disabled={
-                  submitting
+                  submitting ||
+                  !doctorAvailable
                 }
               />
             </div>
           </div>
 
-          {/* =============================================
-              EMAIL + AGE
-          ============================================== */}
+          {/* AGE + GENDER */}
 
           <div
             className="
@@ -1044,8 +1343,6 @@ export default function BookingWizard({
               gap-5
             "
           >
-            
-
             <div>
               <label
                 className={
@@ -1075,14 +1372,11 @@ export default function BookingWizard({
                 }
                 placeholder="العمر"
                 disabled={
-                  submitting
+                  submitting ||
+                  !doctorAvailable
                 }
               />
             </div>
-
-          {/* =============================================
-              GENDER + NOTES
-          ============================================== */}
 
             <div>
               <label
@@ -1109,7 +1403,8 @@ export default function BookingWizard({
                   inputClass
                 }
                 disabled={
-                  submitting
+                  submitting ||
+                  !doctorAvailable
                 }
               >
                 <option value="">
@@ -1125,53 +1420,53 @@ export default function BookingWizard({
                 </option>
               </select>
             </div>
-
-            <div>
-              <label
-                className={
-                  labelClass
-                }
-              >
-                ملاحظات (اختياري)
-              </label>
-
-              <input
-                type="text"
-                value={
-                  form.notes
-                }
-                onChange={(
-                  event
-                ) =>
-                  handleInputChange(
-                    "notes",
-                    event.target.value
-                  )
-                }
-                className={
-                  inputClass
-                }
-                placeholder="أي ملاحظات إضافية"
-                disabled={
-                  submitting
-                }
-              />
-            </div>
           </div>
+
+          {/* NOTES */}
+
+          <div>
+            <label
+              className={
+                labelClass
+              }
+            >
+              ملاحظات (اختياري)
+            </label>
+
+            <input
+              type="text"
+              value={
+                form.notes
+              }
+              onChange={(
+                event
+              ) =>
+                handleInputChange(
+                  "notes",
+                  event.target.value
+                )
+              }
+              className={
+                inputClass
+              }
+              placeholder="أي ملاحظات إضافية"
+              disabled={
+                submitting ||
+                !doctorAvailable
+              }
+            />
+          </div>
+
         </div>
       </div>
 
-      {/* =================================================
-          BUTTONS
-      ================================================== */}
+      {/* BUTTONS */}
 
       <div
         className="
           border-t
           border-slate-100
-
           p-4
-
           flex
           items-center
           justify-between
@@ -1180,21 +1475,19 @@ export default function BookingWizard({
       >
         <button
           type="button"
-          onClick={onClose}
-          disabled={submitting}
+          onClick={
+            onClose
+          }
+          disabled={
+            submitting
+          }
           className="
             btn
             btn-secondary
-
             disabled:opacity-50
           "
         >
-          <X
-            className="
-              w-4
-              h-4
-            "
-          />
+          <X className="w-4 h-4" />
 
           إلغاء
         </button>
@@ -1206,12 +1499,12 @@ export default function BookingWizard({
           }
           disabled={
             !canSubmit ||
-            submitting
+            submitting ||
+            doctorLoading
           }
           className="
             btn
             btn-primary
-
             disabled:opacity-50
             disabled:cursor-not-allowed
           "
@@ -1228,20 +1521,22 @@ export default function BookingWizard({
 
               جاري الحجز...
             </>
+          ) : !doctorAvailable ? (
+            <>
+              <X className="w-4 h-4" />
+
+              غير متاح للحجز
+            </>
           ) : (
             <>
-              <Check
-                className="
-                  w-4
-                  h-4
-                "
-              />
+              <Check className="w-4 h-4" />
 
               تأكيد الحجز
             </>
           )}
         </button>
       </div>
+
     </div>
   );
 }

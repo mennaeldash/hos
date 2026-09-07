@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useNavigate,
   useParams,
@@ -27,8 +27,11 @@ import PlaceholderImage from "@/components/PlaceholderImage";
 import {
   useDepartments,
   useDoctors,
-  useDoctorSchedule,
 } from "@/lib/hooks";
+
+import {
+  getDoctor,
+} from "@/services/doctors";
 
 const BACKEND_ORIGIN =
   import.meta.env.VITE_BACKEND_ORIGIN ||
@@ -72,7 +75,8 @@ const getBackendImageUrl = (imageUrl) => {
 
   if (
     imageUrl.startsWith("http://") ||
-    imageUrl.startsWith("https://")
+    imageUrl.startsWith("https://") ||
+    imageUrl.startsWith("blob:")
   ) {
     return imageUrl;
   }
@@ -83,6 +87,10 @@ const getBackendImageUrl = (imageUrl) => {
       : `/${imageUrl}`
   }`;
 };
+
+/* =========================================================
+   DEPARTMENT
+========================================================= */
 
 const normalizeDepartment = (department) => ({
   ...department,
@@ -115,6 +123,161 @@ const normalizeDepartment = (department) => ({
   ),
 });
 
+/* =========================================================
+   WORKING DAYS
+========================================================= */
+
+const DAY_LABELS = {
+  0: "الأحد",
+  1: "الاثنين",
+  2: "الثلاثاء",
+  3: "الأربعاء",
+  4: "الخميس",
+  5: "الجمعة",
+  6: "السبت",
+
+  sunday: "الأحد",
+  monday: "الاثنين",
+  tuesday: "الثلاثاء",
+  wednesday: "الأربعاء",
+  thursday: "الخميس",
+  friday: "الجمعة",
+  saturday: "السبت",
+};
+
+const getArabicDayLabel = (day) => {
+  if (
+    day === null ||
+    day === undefined ||
+    day === ""
+  ) {
+    return "";
+  }
+
+  /* Object */
+
+  if (
+    typeof day === "object" &&
+    day !== null
+  ) {
+    const dayId =
+      day.id ??
+      day.Id ??
+      day.dayId ??
+      day.DayId;
+
+    if (
+      dayId !== null &&
+      dayId !== undefined &&
+      DAY_LABELS[Number(dayId)]
+    ) {
+      return DAY_LABELS[Number(dayId)];
+    }
+
+    const dayName =
+      day.name ??
+      day.Name ??
+      day.day ??
+      day.Day ??
+      day.dayName ??
+      day.DayName ??
+      "";
+
+    return getArabicDayLabel(dayName);
+  }
+
+  /* Number */
+
+  const numericDay = Number(day);
+
+  if (
+    Number.isInteger(numericDay) &&
+    numericDay >= 0 &&
+    numericDay <= 6
+  ) {
+    return DAY_LABELS[numericDay];
+  }
+
+  /* English String */
+
+  const value =
+    String(day)
+      .trim()
+      .toLowerCase();
+
+  return (
+    DAY_LABELS[value] ||
+    String(day)
+  );
+};
+
+const normalizeWorkingDaysArray = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  /*
+    لو Backend رجع:
+    "Sunday,Thursday"
+    أو
+    "0,4"
+  */
+
+  if (typeof value === "string") {
+    return value
+      .split(/[,|;]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const extractDoctorWorkingDays = (doctor) => {
+  if (!doctor) {
+    return [];
+  }
+
+  const rawDays =
+    doctor.workingDays ??
+    doctor.WorkingDays ??
+    doctor.working_days ??
+    doctor.days ??
+    doctor.Days ??
+    doctor.workingDayIds ??
+    doctor.WorkingDayIds ??
+    doctor.workingDaysIds ??
+    doctor.WorkingDaysIds ??
+    [];
+
+  return normalizeWorkingDaysArray(rawDays);
+};
+
+const getWorkingDaysLabels = (doctor) => {
+  const days =
+    extractDoctorWorkingDays(doctor);
+
+  return [
+    ...new Set(
+      days
+        .map(getArabicDayLabel)
+        .filter(Boolean)
+    ),
+  ];
+};
+
+/* =========================================================
+   NORMALIZE DOCTOR
+========================================================= */
+
 const normalizeDoctor = (doctor) => ({
   ...doctor,
 
@@ -127,18 +290,21 @@ const normalizeDoctor = (doctor) => ({
     doctor.fullName ??
     doctor.FullName ??
     doctor.name ??
+    doctor.Name ??
     "",
 
   specialty:
     doctor.specialization ??
     doctor.Specialization ??
     doctor.specialty ??
+    doctor.Specialty ??
     "",
 
   bio:
     doctor.biography ??
     doctor.Biography ??
     doctor.bio ??
+    doctor.Bio ??
     "",
 
   department_id:
@@ -157,6 +323,8 @@ const normalizeDoctor = (doctor) => ({
     doctor.imageUrl ??
       doctor.ImageUrl ??
       doctor.image_url ??
+      doctor.image ??
+      doctor.Image ??
       ""
   ),
 
@@ -165,11 +333,18 @@ const normalizeDoctor = (doctor) => ({
     doctor.Status ??
     "",
 
+  working_days:
+    extractDoctorWorkingDays(doctor),
+
   qualification:
     doctor.qualification ??
     doctor.Qualification ??
     "",
 });
+
+/* =========================================================
+   STATUS
+========================================================= */
 
 const isDoctorActive = (status) => {
   if (
@@ -180,39 +355,41 @@ const isDoctorActive = (status) => {
     return true;
   }
 
-  const value = normalizeText(status);
+  if (
+    typeof status === "number"
+  ) {
+    return status === 0;
+  }
+
+  const numericStatus =
+    Number(status);
+
+  if (
+    numericStatus === 0
+  ) {
+    return true;
+  }
+
+  if (
+    numericStatus === 1
+  ) {
+    return false;
+  }
+
+  const value =
+    normalizeText(status);
 
   return (
     value === "active" ||
     value === "نشط" ||
-    value === "1"
+    value === "متاح"
   );
 };
 
-const getWorkingDayLabel = (day) => {
-  if (
-    day === null ||
-    day === undefined
-  ) {
-    return "";
-  }
-
-  if (
-    typeof day === "string" ||
-    typeof day === "number"
-  ) {
-    return String(day);
-  }
-
-  return (
-    day.name ??
-    day.day ??
-    day.label ??
-    day.day_name ??
-    day.dayName ??
-    ""
-  );
-};
+const getStatusLabel = (status) =>
+  isDoctorActive(status)
+    ? "متاح"
+    : "غير متاح";
 
 /* =========================================================
    CLINICS LIST
@@ -224,17 +401,21 @@ function ClinicsList() {
     loading: deptLoading,
   } = useDepartments();
 
-  const normalizedDepartments = useMemo(
-    () =>
-      Array.isArray(departments)
-        ? departments.map(normalizeDepartment)
-        : [],
-    [departments]
-  );
+  const normalizedDepartments =
+    useMemo(
+      () =>
+        Array.isArray(departments)
+          ? departments.map(
+              normalizeDepartment
+            )
+          : [],
+      [departments]
+    );
 
   return (
     <>
       {/* HERO */}
+
       <section className="relative py-20 overflow-hidden">
         <div className="absolute inset-0">
           <img
@@ -294,8 +475,10 @@ function ClinicsList() {
       </section>
 
       {/* DEPARTMENTS */}
+
       <section className="section-padding bg-slate-50">
         <div className="px-8">
+
           {deptLoading ? (
             <div
               className="
@@ -306,7 +489,9 @@ function ClinicsList() {
                 gap-6
               "
             >
-              {Array.from({ length: 12 }).map((_, i) => (
+              {Array.from({
+                length: 12,
+              }).map((_, i) => (
                 <div
                   key={i}
                   className="
@@ -335,123 +520,131 @@ function ClinicsList() {
                 gap-6
               "
             >
-              {normalizedDepartments.map((dept, idx) => {
-                const Icon =
-                  departmentIcons[dept.icon || ""] ||
-                  Stethoscope;
+              {normalizedDepartments.map(
+                (dept, idx) => {
+                  const Icon =
+                    departmentIcons[
+                      dept.icon || ""
+                    ] ||
+                    Stethoscope;
 
-                return (
-                  <Reveal
-                    key={dept.id ?? `${dept.name}-${idx}`}
-                    delay={idx * 50}
-                  >
-                    <Link
-                      to={`/clinics/${dept.id}`}
-                      className="
-                        card
-                        card-lift
-                        p-6
-                        text-center
-                        w-full
-                        group
-                        h-full
-                        block
-                      "
+                  return (
+                    <Reveal
+                      key={
+                        dept.id ??
+                        `${dept.name}-${idx}`
+                      }
+                      delay={idx * 50}
                     >
-                      <div
+                      <Link
+                        to={`/clinics/${dept.id}`}
                         className="
-                          w-20
-                          h-20
-                          mx-auto
-                          rounded-3xl
-                          bg-gradient-to-br
-                          from-primary-100
-                          to-secondary-100
-                          flex
-                          items-center
-                          justify-center
-                          mb-5
-                        overflow-hidden
-                          group-hover:from-primary-500
-                          group-hover:to-secondary-500
-                          transition-all
-                          duration-500
-                        "
-                     >
-  {dept.image_url ? (
-    <img
-      src={dept.image_url}
-      alt={dept.name}
-      className="
-        w-12
-        h-12
-        object-contain
-        transition-transform
-        duration-500
-        group-hover:scale-110
-      "
-    />
-  ) : (
-    <Icon
-      className="
-        w-10
-        h-10
-        text-primary-600
-        group-hover:text-white
-        transition-colors
-        duration-500
-      "
-    />
-  )}
-</div>
-
-
-                      <h3
-                        className="
-                          text-2xl
-                          font-bold
-                          text-slate-800
-                          mb-2
+                          card
+                          card-lift
+                          p-6
+                          text-center
+                          w-full
+                          group
+                          h-full
+                          block
                         "
                       >
-                        {dept.name}
-                      </h3>
-
-                      {dept.description && (
-                        <p
+                        <div
                           className="
-                            text-slate-600
-                            text-lg
-                            leading-relaxed
-                            line-clamp-2
-                            mb-4
+                            w-20
+                            h-20
+                            mx-auto
+                            rounded-3xl
+                            bg-gradient-to-br
+                            from-primary-100
+                            to-secondary-100
+                            flex
+                            items-center
+                            justify-center
+                            mb-5
+                            overflow-hidden
+                            group-hover:from-primary-500
+                            group-hover:to-secondary-500
+                            transition-all
+                            duration-500
                           "
                         >
-                          {dept.description}
-                        </p>
-                      )}
+                          {dept.image_url ? (
+                            <img
+                              src={dept.image_url}
+                              alt={dept.name}
+                              className="
+                                w-12
+                                h-12
+                                object-contain
+                                transition-transform
+                                duration-500
+                                group-hover:scale-110
+                              "
+                            />
+                          ) : (
+                            <Icon
+                              className="
+                                w-10
+                                h-10
+                                text-primary-600
+                                group-hover:text-white
+                                transition-colors
+                                duration-500
+                              "
+                            />
+                          )}
+                        </div>
 
-                      <span
-                        className="
-                          inline-flex
-                          items-center
-                          gap-1
-                          text-primary-600
-                          font-bold
-                          text-md
-                          group-hover:gap-2
-                          transition-all
-                        "
-                      >
-                        عرض الأطباء
-                        <ArrowLeft className="w-4 h-4" />
-                      </span>
-                    </Link>
-                  </Reveal>
-                );
-              })}
+                        <h3
+                          className="
+                            text-2xl
+                            font-bold
+                            text-slate-800
+                            mb-2
+                          "
+                        >
+                          {dept.name}
+                        </h3>
+
+                        {dept.description && (
+                          <p
+                            className="
+                              text-slate-600
+                              text-lg
+                              leading-relaxed
+                              line-clamp-2
+                              mb-4
+                            "
+                          >
+                            {dept.description}
+                          </p>
+                        )}
+
+                        <span
+                          className="
+                            inline-flex
+                            items-center
+                            gap-1
+                            text-primary-600
+                            font-bold
+                            text-md
+                            group-hover:gap-2
+                            transition-all
+                          "
+                        >
+                          عرض الأطباء
+
+                          <ArrowLeft className="w-4 h-4" />
+                        </span>
+                      </Link>
+                    </Reveal>
+                  );
+                }
+              )}
             </div>
           )}
+
         </div>
       </section>
     </>
@@ -463,8 +656,12 @@ function ClinicsList() {
 ========================================================= */
 
 function DepartmentDetailPage() {
-  const { slug } = useParams();
-  const navigate = useNavigate();
+  const {
+    slug,
+  } = useParams();
+
+  const navigate =
+    useNavigate();
 
   const {
     data: departments = [],
@@ -476,61 +673,97 @@ function DepartmentDetailPage() {
     loading: doctorsLoading,
   } = useDoctors();
 
-  const normalizedDepartments = useMemo(
-    () =>
-      Array.isArray(departments)
-        ? departments.map(normalizeDepartment)
-        : [],
-    [departments]
-  );
-
-  const normalizedDoctors = useMemo(
-    () =>
-      Array.isArray(doctors)
-        ? doctors.map(normalizeDoctor)
-        : [],
-    [doctors]
-  );
-
-  const department = useMemo(() => {
-    return normalizedDepartments.find(
-      (item) =>
-        String(item.id) === String(slug)
+  const normalizedDepartments =
+    useMemo(
+      () =>
+        Array.isArray(
+          departments
+        )
+          ? departments.map(
+              normalizeDepartment
+            )
+          : [],
+      [departments]
     );
-  }, [normalizedDepartments, slug]);
 
-  const deptDoctors = useMemo(() => {
-    if (!department) {
-      return [];
-    }
+  const normalizedDoctors =
+    useMemo(
+      () =>
+        Array.isArray(
+          doctors
+        )
+          ? doctors.map(
+              normalizeDoctor
+            )
+          : [],
+      [doctors]
+    );
 
-    return normalizedDoctors.filter((doctor) => {
-      const sameDepartmentById =
-        doctor.department_id !== null &&
-        doctor.department_id !== undefined &&
-        String(doctor.department_id) ===
-          String(department.id);
-
-      const sameDepartmentByName =
-        normalizeText(doctor.department_name) ===
-        normalizeText(department.name);
-
-      return (
-        (sameDepartmentById ||
-          sameDepartmentByName) &&
-        isDoctorActive(doctor.status)
+  const department =
+    useMemo(() => {
+      return normalizedDepartments.find(
+        (item) =>
+          String(item.id) ===
+          String(slug)
       );
-    });
-  }, [department, normalizedDoctors]);
+    }, [
+      normalizedDepartments,
+      slug,
+    ]);
+
+  const deptDoctors =
+    useMemo(() => {
+      if (!department) {
+        return [];
+      }
+
+      return normalizedDoctors.filter(
+        (doctor) => {
+          const sameDepartmentById =
+            doctor.department_id !== null &&
+            doctor.department_id !== undefined &&
+            String(
+              doctor.department_id
+            ) ===
+              String(
+                department.id
+              );
+
+          const sameDepartmentByName =
+            normalizeText(
+              doctor.department_name
+            ) ===
+            normalizeText(
+              department.name
+            );
+
+          return (
+            sameDepartmentById ||
+            sameDepartmentByName
+          );
+        }
+      );
+    }, [
+      department,
+      normalizedDoctors,
+    ]);
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
 
   if (deptLoading) {
     return (
       <div className="pt-24 min-h-screen bg-slate-50">
         <div className="container-custom py-20">
+
           <div className="h-40 rounded-3xl shimmer-bg" />
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-10">
-            {Array.from({ length: 4 }).map(
+
+            {Array.from({
+              length: 4,
+            }).map(
               (_, index) => (
                 <div
                   key={index}
@@ -538,11 +771,16 @@ function DepartmentDetailPage() {
                 />
               )
             )}
+
           </div>
         </div>
       </div>
     );
   }
+
+  /* =======================================================
+     DEPARTMENT NOT FOUND
+  ======================================================= */
 
   if (!department) {
     return (
@@ -556,6 +794,7 @@ function DepartmentDetailPage() {
         "
       >
         <div className="text-center">
+
           <p className="text-slate-500 text-lg mb-4">
             القسم غير موجود
           </p>
@@ -563,24 +802,31 @@ function DepartmentDetailPage() {
           <button
             type="button"
             onClick={() =>
-              navigate("/clinics")
+              navigate(
+                "/clinics"
+              )
             }
             className="btn btn-primary"
           >
             العودة للأقسام
           </button>
+
         </div>
       </div>
     );
   }
 
   const Icon =
-    departmentIcons[department.icon || ""] ||
+    departmentIcons[
+      department.icon || ""
+    ] ||
     Stethoscope;
 
   return (
     <div className="pt-24">
+
       {/* DEPARTMENT HERO */}
+
       <section
         className="
           relative
@@ -600,7 +846,9 @@ function DepartmentDetailPage() {
           <button
             type="button"
             onClick={() =>
-              navigate("/clinics")
+              navigate(
+                "/clinics"
+              )
             }
             className="
               inline-flex
@@ -614,10 +862,12 @@ function DepartmentDetailPage() {
             "
           >
             <ArrowLeft className="w-5 h-5" />
+
             العودة للأقسام
           </button>
 
           <div className="flex items-center gap-5">
+
             <div
               className="
                 w-20
@@ -652,13 +902,16 @@ function DepartmentDetailPage() {
                 </p>
               )}
             </div>
+
           </div>
         </div>
       </section>
 
       {/* DOCTORS */}
+
       <section className="section-padding bg-[#F8FAFB]">
         <div className="container-custom">
+
           <Reveal>
             <SectionHeading
               badge="أطباء القسم"
@@ -669,7 +922,10 @@ function DepartmentDetailPage() {
 
           {doctorsLoading ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {Array.from({ length: 4 }).map(
+
+              {Array.from({
+                length: 4,
+              }).map(
                 (_, index) => (
                   <div
                     key={index}
@@ -677,32 +933,38 @@ function DepartmentDetailPage() {
                   />
                 )
               )}
+
             </div>
           ) : deptDoctors.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-slate-500 text-lg">
-                لا يوجد أطباء متاحون في هذا القسم حالياً
+                لا يوجد أطباء في هذا القسم حالياً
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {deptDoctors.map((doctor, idx) => (
-                <Reveal
-                  key={
-                    doctor.id ??
-                    `${doctor.name}-${idx}`
-                  }
-                  delay={idx * 80}
-                  className="h-full"
-                >
-                  <DoctorCard
-                    doctor={doctor}
-                    department={department}
-                  />
-                </Reveal>
-              ))}
+
+              {deptDoctors.map(
+                (doctor, idx) => (
+                  <Reveal
+                    key={
+                      doctor.id ??
+                      `${doctor.name}-${idx}`
+                    }
+                    delay={idx * 80}
+                    className="h-full"
+                  >
+                    <DoctorCard
+                      doctor={doctor}
+                      department={department}
+                    />
+                  </Reveal>
+                )
+              )}
+
             </div>
           )}
+
         </div>
       </section>
     </div>
@@ -711,7 +973,6 @@ function DepartmentDetailPage() {
 
 /* =========================================================
    DOCTOR CARD
-   نفس شكل كارت العلاج الطبيعي
 ========================================================= */
 
 function DoctorCard({
@@ -719,24 +980,157 @@ function DoctorCard({
   department,
   showBookButton = true,
 }) {
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
-  const {
-    data: schedule,
-  } = useDoctorSchedule(doctor.id);
+  const [
+    doctorDetails,
+    setDoctorDetails,
+  ] = useState(doctor);
 
-  const workingDays = useMemo(() => {
-    if (
-      !schedule ||
-      !Array.isArray(schedule.working_days)
-    ) {
-      return [];
-    }
+  const [
+    detailsLoading,
+    setDetailsLoading,
+  ] = useState(
+    Boolean(doctor.id)
+  );
 
-    return schedule.working_days
-      .map(getWorkingDayLabel)
-      .filter(Boolean);
-  }, [schedule]);
+  /* =======================================================
+     GET FULL DOCTOR DETAILS
+  ======================================================= */
+
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    const loadDoctorDetails =
+      async () => {
+        if (!doctor.id) {
+          setDoctorDetails(
+            doctor
+          );
+
+          setDetailsLoading(
+            false
+          );
+
+          return;
+        }
+
+        setDetailsLoading(
+          true
+        );
+
+        try {
+          const details =
+            await getDoctor(
+              doctor.id
+            );
+
+          console.log(
+            "CLINIC DOCTOR DETAILS:",
+            details
+          );
+
+          if (cancelled) {
+            return;
+          }
+
+       const detailsWorkingDays =
+  extractDoctorWorkingDays(details);
+
+const originalWorkingDays =
+  extractDoctorWorkingDays(doctor);
+
+const finalWorkingDays =
+  detailsWorkingDays.length > 0
+    ? detailsWorkingDays
+    : originalWorkingDays;
+
+setDoctorDetails({
+  ...doctor,
+  ...details,
+
+  department_id:
+    doctor.department_id ??
+    details?.department_id ??
+    details?.departmentId ??
+    null,
+
+  department_name:
+    details?.department_name ||
+    details?.departmentName ||
+    doctor.department_name ||
+    "",
+
+  workingDays: finalWorkingDays,
+  working_days: finalWorkingDays,
+});
+
+
+        } catch (error) {
+          console.error(
+            "GET CLINIC DOCTOR DETAILS ERROR:",
+            error
+          );
+
+          if (!cancelled) {
+            setDoctorDetails(
+              doctor
+            );
+          }
+        } finally {
+          if (!cancelled) {
+            setDetailsLoading(
+              false
+            );
+          }
+        }
+      };
+
+    loadDoctorDetails();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, [
+    doctor.id,
+  ]);
+
+  /* =======================================================
+     STATUS
+  ======================================================= */
+
+  const currentStatus =
+    doctorDetails?.status ??
+    doctorDetails?.Status ??
+    doctor.status ??
+    "";
+
+  const doctorAvailable =
+    isDoctorActive(
+      currentStatus
+    );
+
+  /* =======================================================
+     WORKING DAYS
+  ======================================================= */
+
+  const workingDays =
+    useMemo(
+      () =>
+        getWorkingDaysLabels(
+          doctorDetails
+        ),
+      [
+        doctorDetails,
+      ]
+    );
+
+  /* =======================================================
+     BOOK
+  ======================================================= */
 
   const handleBook = () => {
     navigate(
@@ -767,7 +1161,9 @@ function DoctorCard({
         dir="rtl"
         className="flex h-full flex-col"
       >
+
         {/* MAIN CONTENT */}
+
         <div
           className="
             flex
@@ -779,7 +1175,9 @@ function DoctorCard({
             gap-5
           "
         >
+
           {/* IMAGE */}
+
           <div
             className="
               shrink-0
@@ -807,8 +1205,14 @@ function DoctorCard({
             >
               <PlaceholderImage
                 type="doctor"
-                src={doctor.image_url}
-                alt={doctor.name}
+                src={
+                  doctorDetails?.image_url ||
+                  doctor.image_url
+                }
+                alt={
+                  doctorDetails?.name ||
+                  doctor.name
+                }
                 className="
                   w-full
                   h-full
@@ -824,8 +1228,9 @@ function DoctorCard({
           </div>
 
           {/* DETAILS */}
+
           <div className="flex-1 min-w-0 text-center sm:text-right">
-            {/* NAME */}
+
             <h3
               className="
                 text-[22px]
@@ -836,11 +1241,12 @@ function DoctorCard({
                 mb-1
               "
             >
-              {doctor.name}
+              {doctorDetails?.name ||
+                doctor.name}
             </h3>
 
-            {/* SPECIALTY */}
-            {doctor.specialty && (
+            {(doctorDetails?.specialty ||
+              doctor.specialty) && (
               <p
                 className="
                   text-[#197786]
@@ -850,13 +1256,15 @@ function DoctorCard({
                   mb-2
                 "
               >
-                {doctor.specialty}
+                {doctorDetails?.specialty ||
+                  doctor.specialty}
               </p>
             )}
 
-            {/* QUALIFICATION */}
-            {doctor.qualification && (
+            {(doctorDetails?.qualification ||
+              doctor.qualification) && (
               <div className="mt-2 mb-3">
+
                 <div
                   className="
                     flex
@@ -890,14 +1298,16 @@ function DoctorCard({
                       font-medium
                     "
                   >
-                    {doctor.qualification}
+                    {doctorDetails?.qualification ||
+                      doctor.qualification}
                   </p>
+
                 </div>
               </div>
             )}
 
-            {/* BIO */}
-            {doctor.bio && (
+            {(doctorDetails?.bio ||
+              doctor.bio) && (
               <p
                 className="
                   text-[#6D686A]
@@ -906,98 +1316,191 @@ function DoctorCard({
                   mb-1
                 "
               >
-                {doctor.bio}
+                {doctorDetails?.bio ||
+                  doctor.bio}
               </p>
             )}
+
           </div>
         </div>
 
-        {/* WORKING DAYS */}
-        {workingDays.length > 0 && (
-          <div
-            className="
-              mt-5
-              pt-4
-              border-t
-              border-[#E7E3E3]
-            "
-          >
-            <div
-              className="
-                flex
-                flex-wrap
-                items-center
-                gap-2
-              "
-            >
-              <span
-                className="
-                  text-[#197786]
-                  text-sm
-                  font-extrabold
-                "
-              >
-                أيام العمل:
-              </span>
+        {/* =============================================
+            WORKING DAYS - فوق الخط
+        ============================================== */}
 
-              {workingDays.map(
-                (day, index) => (
-                  <span
-                    key={`${day}-${index}`}
-                    className="
-                      inline-flex
-                      items-center
-                      justify-center
-                      min-h-[34px]
-                      rounded-lg
-                      bg-[#D1F9FC]
-                      px-3
-                      py-1.5
-                      text-[#197786]
-                      text-sm
-                      font-extrabold
-                    "
-                  >
-                    {day}
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* BOOK BUTTON */}
-        {showBookButton && doctor.id && (
-          <button
-            type="button"
-            onClick={handleBook}
+        <div
+          className="
+            mt-5
+            flex
+            flex-wrap
+            items-center
+            gap-2
+          "
+        >
+          <span
             className="
-              group/btn
-              mt-5
-              w-full
-              inline-flex
-              items-center
-              justify-center
-              gap-2
-              rounded-xl
-              bg-[#953238]
-              px-5
-              py-3
-              text-white
+              text-[#197786]
               text-sm
               font-extrabold
-              shadow-[0_8px_20px_rgba(149,50,56,0.18)]
-              transition-all
-              duration-300
-              hover:bg-[#7C3439]
-              hover:-translate-y-0.5
-              hover:shadow-[0_12px_28px_rgba(149,50,56,0.26)]
             "
           >
-            <CalendarPlus className="w-4 h-4" />
-            احجز الآن
-          </button>
-        )}
+            أيام العمل:
+          </span>
+
+          {detailsLoading ? (
+            <span className="text-sm font-bold text-slate-400">
+              جاري تحميل أيام العمل...
+            </span>
+          ) : workingDays.length > 0 ? (
+            workingDays.map(
+              (day, index) => (
+                <span
+                  key={`${day}-${index}`}
+                  className="
+                    inline-flex
+                    items-center
+                    justify-center
+                    min-h-[34px]
+                    rounded-lg
+                    bg-[#D1F9FC]
+                    px-3
+                    py-1.5
+                    text-[#197786]
+                    text-sm
+                    font-extrabold
+                  "
+                >
+                  {day}
+                </span>
+              )
+            )
+          ) : (
+            <span className="text-sm font-bold text-slate-400">
+              لم يتم تحديد أيام العمل
+            </span>
+          )}
+        </div>
+
+        {/* =============================================
+            الخط + الحالة
+        ============================================== */}
+
+        <div
+          className="
+            mt-4
+            pt-4
+            border-t
+            border-[#E7E3E3]
+          "
+        >
+          <div
+            className="
+              flex
+              flex-wrap
+              items-center
+              gap-2
+            "
+          >
+            <span
+              className="
+                text-[#2F3437]
+                text-sm
+                font-extrabold
+              "
+            >
+              الحالة:
+            </span>
+
+            <span
+              className={`
+                inline-flex
+                items-center
+                gap-2
+                rounded-full
+                px-3
+                py-1.5
+                text-sm
+                font-extrabold
+                ${
+                  doctorAvailable
+                    ? "bg-emerald-50 text-emerald-700"
+                    : "bg-[#953238]/10 text-[#953238]"
+                }
+              `}
+            >
+              <span
+                className={`
+                  h-2
+                  w-2
+                  rounded-full
+                  ${
+                    doctorAvailable
+                      ? "bg-emerald-500"
+                      : "bg-[#953238]"
+                  }
+                `}
+              />
+
+              {getStatusLabel(
+                currentStatus
+              )}
+            </span>
+          </div>
+        </div>
+
+        {/* BOOK BUTTON */}
+
+        {showBookButton &&
+          doctor.id && (
+            <button
+              type="button"
+              onClick={
+                handleBook
+              }
+              disabled={
+                !doctorAvailable
+              }
+              className={`
+                group/btn
+                mt-5
+                w-full
+                inline-flex
+                items-center
+                justify-center
+                gap-2
+                rounded-xl
+                px-5
+                py-3
+                text-sm
+                font-extrabold
+                transition-all
+                duration-300
+                ${
+                  doctorAvailable
+                    ? `
+                        bg-[#953238]
+                        text-white
+                        shadow-[0_8px_20px_rgba(149,50,56,0.18)]
+                        hover:bg-[#7C3439]
+                        hover:-translate-y-0.5
+                        hover:shadow-[0_12px_28px_rgba(149,50,56,0.26)]
+                      `
+                    : `
+                        cursor-not-allowed
+                        bg-slate-200
+                        text-slate-500
+                      `
+                }
+              `}
+            >
+              <CalendarPlus className="w-4 h-4" />
+
+              {doctorAvailable
+                ? "احجز الآن"
+                : "غير متاح للحجز"}
+            </button>
+          )}
+
       </div>
     </div>
   );
@@ -1008,11 +1511,17 @@ function DoctorCard({
 ========================================================= */
 
 export default function Clinics() {
-  const { slug } = useParams();
+  const {
+    slug,
+  } = useParams();
 
   if (slug) {
-    return <DepartmentDetailPage />;
+    return (
+      <DepartmentDetailPage />
+    );
   }
 
-  return <ClinicsList />;
+  return (
+    <ClinicsList />
+  );
 }

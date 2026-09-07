@@ -1,9 +1,5 @@
 import api from "./api";
 
-import {
-  mockDoctorSchedules,
-} from "@/services/mockData";
-
 const DOCTORS_ENDPOINT =
   "/api/dashboard/doctors";
 
@@ -67,6 +63,65 @@ function normalizeImageUrl(imageUrl) {
       ? imageUrl
       : `/${imageUrl}`
   }`;
+}
+
+/* ======================================================
+   NORMALIZE WORKING DAYS
+====================================================== */
+
+function normalizeWorkingDays(
+  doctor
+) {
+  if (!doctor) {
+    return [];
+  }
+
+  const rawDays =
+    doctor.workingDays ??
+    doctor.WorkingDays ??
+    doctor.working_days ??
+    doctor.days ??
+    doctor.Days ??
+    [];
+
+  if (
+    !Array.isArray(rawDays)
+  ) {
+    return [];
+  }
+
+  return rawDays
+    .map((day) => {
+      if (
+        day === null ||
+        day === undefined
+      ) {
+        return null;
+      }
+
+      if (
+        typeof day === "string" ||
+        typeof day === "number"
+      ) {
+        return day;
+      }
+
+      return (
+        day.name ??
+        day.Name ??
+        day.day ??
+        day.Day ??
+        day.id ??
+        day.Id ??
+        null
+      );
+    })
+    .filter(
+      (day) =>
+        day !== null &&
+        day !== undefined &&
+        day !== ""
+    );
 }
 
 /* ======================================================
@@ -134,12 +189,19 @@ function normalizeDoctor(
     "";
 
   const imageUrl =
-    normalizeImageUrl(rawImage);
+    normalizeImageUrl(
+      rawImage
+    );
 
   const status =
     doctor.status ??
     doctor.Status ??
     "";
+
+  const workingDays =
+    normalizeWorkingDays(
+      doctor
+    );
 
   return {
     ...doctor,
@@ -148,7 +210,8 @@ function normalizeDoctor(
 
     id,
 
-    fullName: name,
+    fullName:
+      name,
 
     specialization,
 
@@ -161,6 +224,8 @@ function normalizeDoctor(
     imageUrl,
 
     status,
+
+    workingDays,
 
     /* Frontend style */
 
@@ -180,16 +245,14 @@ function normalizeDoctor(
 
     image_url:
       imageUrl,
+
+    working_days:
+      workingDays,
   };
 }
 
 /* ======================================================
    GET ALL DOCTORS
-
-   بنستخدم with-doctors لأنه بيرجع:
-   - doctor id
-   - department id
-   - department name
 ====================================================== */
 
 export async function getAllDoctors() {
@@ -200,7 +263,9 @@ export async function getAllDoctors() {
       );
 
     const departments =
-      Array.isArray(response.data)
+      Array.isArray(
+        response.data
+      )
         ? response.data
         : [];
 
@@ -232,12 +297,6 @@ export async function getAllDoctors() {
 
     return doctors;
   } catch (error) {
-    /*
-      Fallback:
-      لو with-doctors حصل فيه مشكلة
-      نستخدم GET doctors.
-    */
-
     console.warn(
       "with-doctors failed, using doctors endpoint.",
       error
@@ -256,28 +315,18 @@ export async function getAllDoctors() {
       return [];
     }
 
-    const doctors =
-      response.data
-        .map((doctor) =>
-          normalizeDoctor(
-            doctor
-          )
+    return response.data
+      .map((doctor) =>
+        normalizeDoctor(
+          doctor
         )
-        .filter(Boolean);
-
-    console.log(
-      "GET ALL DOCTORS FALLBACK:",
-      doctors
-    );
-
-    return doctors;
+      )
+      .filter(Boolean);
   }
 }
 
 /* ======================================================
    GET DOCTORS
-
-   مستخدم في hooks.js
 ====================================================== */
 
 export async function getDoctors() {
@@ -288,7 +337,9 @@ export async function getDoctors() {
    GET ONE DOCTOR
 ====================================================== */
 
-export async function getDoctor(id) {
+export async function getDoctor(
+  id
+) {
   if (
     id === null ||
     id === undefined ||
@@ -306,12 +357,6 @@ export async function getDoctor(id) {
 
   return normalizeDoctor({
     ...response.data,
-
-    /*
-      GET doctor/{id}
-      ممكن مايرجعش id،
-      لذلك بناخد الـ id من الـ URL.
-    */
 
     id:
       response.data?.id ??
@@ -362,12 +407,16 @@ export async function createDoctor(
 
   formData.append(
     "FullName",
-    String(fullName).trim()
+    String(
+      fullName
+    ).trim()
   );
 
   formData.append(
     "DepartmentId",
-    String(departmentId)
+    String(
+      departmentId
+    )
   );
 
   const image =
@@ -459,10 +508,6 @@ export async function updateDoctor(
   const formData =
     new FormData();
 
-  /* -----------------------
-     FULL NAME
-  ----------------------- */
-
   const fullName =
     data?.FullName ??
     data?.fullName ??
@@ -474,23 +519,16 @@ export async function updateDoctor(
   ) {
     formData.append(
       "FullName",
-      String(fullName).trim()
+      String(
+        fullName
+      ).trim()
     );
   }
-
-  /* -----------------------
-     IMAGE
-  ----------------------- */
 
   const image =
     data?.Image ??
     data?.image ??
     null;
-
-  /*
-    Image لازم File فقط.
-    مانبعتش رابط الصورة القديمة.
-  */
 
   if (
     image instanceof File
@@ -500,10 +538,6 @@ export async function updateDoctor(
       image
     );
   }
-
-  /* -----------------------
-     SPECIALIZATION
-  ----------------------- */
 
   const specialization =
     data?.Specialization ??
@@ -522,10 +556,6 @@ export async function updateDoctor(
     );
   }
 
-  /* -----------------------
-     BIOGRAPHY
-  ----------------------- */
-
   const biography =
     data?.Biography ??
     data?.biography ??
@@ -543,10 +573,6 @@ export async function updateDoctor(
     );
   }
 
-  /* -----------------------
-     DEPARTMENT
-  ----------------------- */
-
   const departmentId =
     data?.DepartmentId ??
     data?.departmentId ??
@@ -559,38 +585,8 @@ export async function updateDoctor(
   ) {
     formData.append(
       "DepartmentId",
-      String(departmentId)
-    );
-  }
-
-  /* -----------------------
-     STATUS
-  ----------------------- */
-
-  /*
-    Swagger:
-    Status = integer
-
-    لذلك لو القيمة رقم
-    فقط وقتها نبعتها.
-  */
-
-  const status =
-    data?.Status ??
-    data?.statusValue;
-
-  if (
-    status !== undefined &&
-    status !== null &&
-    status !== "" &&
-    !Number.isNaN(
-      Number(status)
-    )
-  ) {
-    formData.append(
-      "Status",
       String(
-        Number(status)
+        departmentId
       )
     );
   }
@@ -631,8 +627,177 @@ export async function deleteDoctor(
       `${DOCTORS_ENDPOINT}/${id}`
     );
 
+  return response.data;
+}
+
+/* ======================================================
+   GET STATUS OPTIONS
+
+   GET /api/dashboard/doctors/status
+====================================================== */
+
+export async function getDoctorStatusOptions() {
+  const response =
+    await api.get(
+      `${DOCTORS_ENDPOINT}/status`
+    );
+
+  return Array.isArray(
+    response.data
+  )
+    ? response.data
+    : [];
+}
+
+/* ======================================================
+   UPDATE STATUS
+
+   0 = Active
+   1 = Unavailable
+====================================================== */
+
+export async function updateDoctorStatus(
+  id,
+  status
+) {
+  if (
+    id === null ||
+    id === undefined ||
+    id === ""
+  ) {
+    throw new Error(
+      "Doctor id is required"
+    );
+  }
+
+  const numericStatus =
+    Number(status);
+
+  if (
+    ![0, 1].includes(
+      numericStatus
+    )
+  ) {
+    throw new Error(
+      "Status must be 0 or 1"
+    );
+  }
+
+  const response =
+    await api.put(
+      `${DOCTORS_ENDPOINT}/${id}/status`,
+      null,
+      {
+        params: {
+          status:
+            numericStatus,
+        },
+      }
+    );
+
+  return response.data;
+}
+
+/* ======================================================
+   GET WORKING DAY OPTIONS
+
+   GET /api/dashboard/doctors/working-days
+
+   0 Sunday
+   1 Monday
+   2 Tuesday
+   3 Wednesday
+   4 Thursday
+   5 Friday
+   6 Saturday
+====================================================== */
+
+export async function getDoctorWorkingDayOptions() {
+  const response =
+    await api.get(
+      `${DOCTORS_ENDPOINT}/working-days`
+    );
+
+  return Array.isArray(
+    response.data
+  )
+    ? response.data
+    : [];
+}
+
+/* ======================================================
+   UPDATE WORKING DAYS
+
+   PUT /api/dashboard/doctors/{id}/working-days
+
+   Example:
+
+   {
+     days: [6, 1, 3]
+   }
+
+   = السبت + الاثنين + الأربعاء
+====================================================== */
+
+export async function updateDoctorWorkingDays(
+  id,
+  days
+) {
+  if (
+    id === null ||
+    id === undefined ||
+    id === ""
+  ) {
+    throw new Error(
+      "Doctor id is required"
+    );
+  }
+
+  if (
+    !Array.isArray(days)
+  ) {
+    throw new Error(
+      "Days must be an array"
+    );
+  }
+
+  const normalizedDays =
+    [
+      ...new Set(
+        days.map(
+          (day) =>
+            Number(day)
+        )
+      ),
+    ];
+
+  const invalidDay =
+    normalizedDays.some(
+      (day) =>
+        !Number.isInteger(
+          day
+        ) ||
+        day < 0 ||
+        day > 6
+    );
+
+  if (invalidDay) {
+    throw new Error(
+      "Each working day must be between 0 and 6"
+    );
+  }
+
+  const response =
+    await api.put(
+      `${DOCTORS_ENDPOINT}/${id}/working-days`,
+      {
+        days:
+          normalizedDays,
+      }
+    );
+
   console.log(
-    "DELETE DOCTOR RESPONSE:",
+    "UPDATE DOCTOR WORKING DAYS RESPONSE:",
     response.data
   );
 
@@ -642,14 +807,10 @@ export async function deleteDoctor(
 /* ======================================================
    GET DOCTOR SCHEDULE
 
-   مفيش Endpoint للمواعيد في الـ Backend حاليًا.
+   خلاص مفيش Mock.
 
-   لذلك أيام العمل فقط جاية مؤقتًا
-   من mockDoctorSchedules.
-
-   مهم:
-   doctor_id في mockData لازم يساوي
-   ID الدكتور الحقيقي في الـ Backend.
+   بناخد أيام الدكتور الحقيقية
+   من GET /doctors/{id}
 ====================================================== */
 
 export async function getDoctorSchedule(
@@ -663,27 +824,20 @@ export async function getDoctorSchedule(
     return null;
   }
 
-  const schedule =
-    mockDoctorSchedules.find(
-      (item) =>
-        String(
-          item.doctor_id
-        ) ===
-        String(doctorId)
+  const doctor =
+    await getDoctor(
+      doctorId
     );
 
-  if (!schedule) {
-    return null;
-  }
-
   return {
-    ...schedule,
+    doctor_id:
+      doctor.id,
 
     working_days:
       Array.isArray(
-        schedule.working_days
+        doctor.working_days
       )
-        ? schedule.working_days
+        ? doctor.working_days
         : [],
   };
 }

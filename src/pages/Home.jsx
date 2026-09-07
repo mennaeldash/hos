@@ -79,13 +79,87 @@ const whyChooseIcons = {
   target: TargetIcon,
 };
 
-const statIcons = {
-  "user-md": UserRound,
-  bed: Activity,
-  "door-open": Building2,
-  building: Building2,
-  truck: Activity,
-  users: Activity,
+const getStatisticIcon = (key) => {
+  const normalizedKey = String(key || "")
+    .trim()
+    .toLowerCase();
+
+  if (
+    normalizedKey.includes("طبيب") ||
+    normalizedKey.includes("أطباء") ||
+    normalizedKey.includes("اطباء") ||
+    normalizedKey.includes("دكتور")
+  ) {
+    return UserRound;
+  }
+
+  if (
+    normalizedKey.includes("خبرة") ||
+    normalizedKey.includes("سنة") ||
+    normalizedKey.includes("سنوات") ||
+    normalizedKey.includes("عام")
+  ) {
+    return Award;
+  }
+
+  if (
+    normalizedKey.includes("قسم") ||
+    normalizedKey.includes("أقسام") ||
+    normalizedKey.includes("اقسام") ||
+    normalizedKey.includes("عيادة") ||
+    normalizedKey.includes("عيادات") ||
+    normalizedKey.includes("فرع")
+  ) {
+    return Building2;
+  }
+
+  return Activity;
+};
+
+const normalizeStatisticDigits = (value) =>
+  String(value ?? "")
+    .replace(/[٠-٩]/g, (digit) =>
+      String("٠١٢٣٤٥٦٧٨٩".indexOf(digit))
+    )
+    .replace(/[۰-۹]/g, (digit) =>
+      String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit))
+    );
+
+const parseStatisticValue = (value) => {
+  const raw = String(value ?? "").trim();
+
+  if (!raw) {
+    return {
+      raw: "",
+      number: null,
+      suffix: "",
+    };
+  }
+
+  const normalized = normalizeStatisticDigits(raw)
+    .replace(/,/g, "");
+
+  const match = normalized.match(
+    /^(-?\d+(?:\.\d+)?)\s*(.*)$/
+  );
+
+  if (!match) {
+    return {
+      raw,
+      number: null,
+      suffix: "",
+    };
+  }
+
+  const number = Number(match[1]);
+
+  return {
+    raw,
+    number: Number.isFinite(number)
+      ? number
+      : null,
+    suffix: match[2] || "",
+  };
 };
 
 /* =========================================================
@@ -1743,9 +1817,14 @@ export default function Home() {
             {stats.map(
               (stat, idx) => {
                 const Icon =
-                  statIcons[
-                    stat.icon || ""
-                  ] || Activity;
+                  getStatisticIcon(
+                    stat.key
+                  );
+
+                const counter =
+                  parseStatisticValue(
+                    stat.value
+                  );
 
                 return (
                   <Reveal
@@ -1777,17 +1856,23 @@ export default function Home() {
                       </div>
 
                       <div className="text-4xl md:text-5xl font-extrabold text-white mb-2">
-                        <AnimatedCounter
-                          value={
-                            stat.value
-                          }
-                          suffix="+"
-                          withPulse
-                        />
+                        {counter.number !== null ? (
+                          <AnimatedCounter
+                            value={
+                              counter.number
+                            }
+                            suffix={
+                              counter.suffix
+                            }
+                            withPulse
+                          />
+                        ) : (
+                          counter.raw
+                        )}
                       </div>
 
                       <p className="text-slate-300 text-sm font-bold">
-                        {stat.label}
+                        {stat.key}
                       </p>
                     </div>
                   </Reveal>

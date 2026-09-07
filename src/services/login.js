@@ -1,91 +1,161 @@
 import api from "./api";
 
 /* =========================================================
+   ROLES
+========================================================= */
+
+export const ADMIN_ROLES = {
+  ADMIN: "Admin",
+  MANAGER: "Manager",
+};
+
+/* =========================================================
+   NORMALIZE ROLE
+========================================================= */
+
+function normalizeRole(role) {
+  const value = String(
+    role || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (value === "admin") {
+    return ADMIN_ROLES.ADMIN;
+  }
+
+  if (value === "manager") {
+    return ADMIN_ROLES.MANAGER;
+  }
+
+  return "";
+}
+
+/* =========================================================
+   GET ROLE FROM JWT TOKEN
+========================================================= */
+
+function getRoleFromToken(token) {
+  if (
+    !token ||
+    typeof token !== "string"
+  ) {
+    return "";
+  }
+
+  try {
+    const parts =
+      token.split(".");
+
+    if (parts.length !== 3) {
+      return "";
+    }
+
+    let base64 =
+      parts[1]
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+
+    /*
+      JWT Base64 URL أحيانًا بيكون ناقص padding
+    */
+
+    while (
+      base64.length % 4 !== 0
+    ) {
+      base64 += "=";
+    }
+
+    const decoded =
+      window.atob(base64);
+
+    const jsonPayload =
+      decodeURIComponent(
+        decoded
+          .split("")
+          .map(
+            (char) =>
+              "%" +
+              (
+                "00" +
+                char
+                  .charCodeAt(0)
+                  .toString(16)
+              ).slice(-2)
+          )
+          .join("")
+      );
+
+    const payload =
+      JSON.parse(
+        jsonPayload
+      );
+
+    /*
+      ASP.NET Identity غالبًا بيحط الـRole
+      في الـclaim الطويل ده.
+    */
+
+    const role =
+      payload?.[
+        "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+      ] ??
+      payload?.role ??
+      payload?.Role ??
+      "";
+
+    return normalizeRole(
+      role
+    );
+  } catch (error) {
+    console.error(
+      "TOKEN ROLE PARSE ERROR:",
+      error
+    );
+
+    return "";
+  }
+}
+
+/* =========================================================
    LOGIN ADMIN
+
+   POST /api/auth/login
+
+   REQUEST:
+   email
+   password
+
+   BACKEND RESPONSE:
+   token
+
+   FRONTEND:
+   بنستخرج الـRole من الـJWT
 ========================================================= */
 
 export async function loginAdmin(
   email,
   password
 ) {
-  if (!String(email || "").trim()) {
-    throw new Error(
-      "البريد الإلكتروني مطلوب"
-    );
-  }
+  const normalizedEmail =
+    String(email || "").trim();
 
-  if (!String(password || "").trim()) {
-    throw new Error(
-      "كلمة المرور مطلوبة"
-    );
-  }
-
-  const response = await api.post(
-    "/api/auth/login",
-    {
-      email: String(email).trim(),
-      password: String(password),
-    }
-  );
-
-  console.log(
-    "LOGIN ADMIN RESPONSE:",
-    response.data
-  );
-
-  return response.data;
-}
-
-/* =========================================================
-   CREATE ADMIN
-
-   POST /api/auth/create-admin
-========================================================= */
-
-export async function createAdmin(data) {
-  const email =
-    data?.email ??
-    data?.Email ??
-    "";
-
-  const password =
-    data?.password ??
-    data?.Password ??
-    "";
-
-  const confirmPassword =
-    data?.confirmPassword ??
-    data?.ConfirmPassword ??
-    "";
+  const normalizedPassword =
+    String(password || "");
 
   /* =======================================================
      VALIDATION
   ======================================================= */
 
-  if (!String(email).trim()) {
+  if (!normalizedEmail) {
     throw new Error(
       "البريد الإلكتروني مطلوب"
     );
   }
 
-  if (!String(password)) {
+  if (!normalizedPassword) {
     throw new Error(
       "كلمة المرور مطلوبة"
-    );
-  }
-
-  if (!String(confirmPassword)) {
-    throw new Error(
-      "تأكيد كلمة المرور مطلوب"
-    );
-  }
-
-  if (
-    String(password) !==
-    String(confirmPassword)
-  ) {
-    throw new Error(
-      "كلمة المرور وتأكيد كلمة المرور غير متطابقين"
     );
   }
 
@@ -93,15 +163,167 @@ export async function createAdmin(data) {
      REQUEST
   ======================================================= */
 
-  const response = await api.post(
-    "/api/auth/create-admin",
-    {
-      email: String(email).trim(),
-      password: String(password),
-      confirmPassword:
-        String(confirmPassword),
-    }
+  const response =
+    await api.post(
+      "/api/auth/login",
+      {
+        email:
+          normalizedEmail,
+
+        password:
+          normalizedPassword,
+      }
+    );
+
+  const data =
+    response.data || {};
+
+  const token =
+    data?.token ??
+    data?.Token ??
+    data?.accessToken ??
+    data?.access_token ??
+    "";
+
+  /*
+    احتياطي:
+    لو الباك رجّع Role مباشرة في المستقبل
+    ناخده، وإلا نقرأه من الـJWT.
+  */
+
+  let role =
+    normalizeRole(
+      data?.role ??
+        data?.Role ??
+        data?.user?.role ??
+        data?.user?.Role
+    );
+
+  if (
+    !role &&
+    token
+  ) {
+    role =
+      getRoleFromToken(
+        token
+      );
+  }
+
+  console.log(
+    "LOGIN ADMIN RESPONSE:",
+    data
   );
+
+  console.log(
+    "LOGGED USER ROLE:",
+    role
+  );
+
+  return {
+    ...data,
+
+    token,
+
+    role,
+  };
+}
+
+/* =========================================================
+   CREATE ADMIN
+
+   POST /api/auth/create-admin
+
+   REQUEST:
+   email
+   password
+   confirmPassword
+   role
+========================================================= */
+
+export async function createAdmin(
+  data
+) {
+  const email =
+    String(
+      data?.email ??
+        data?.Email ??
+        ""
+    ).trim();
+
+  const password =
+    String(
+      data?.password ??
+        data?.Password ??
+        ""
+    );
+
+  const confirmPassword =
+    String(
+      data?.confirmPassword ??
+        data?.ConfirmPassword ??
+        ""
+    );
+
+  const role =
+    normalizeRole(
+      data?.role ??
+        data?.Role
+    );
+
+  /* =======================================================
+     VALIDATION
+  ======================================================= */
+
+  if (!email) {
+    throw new Error(
+      "البريد الإلكتروني مطلوب"
+    );
+  }
+
+  if (!password) {
+    throw new Error(
+      "كلمة المرور مطلوبة"
+    );
+  }
+
+  if (!confirmPassword) {
+    throw new Error(
+      "تأكيد كلمة المرور مطلوب"
+    );
+  }
+
+  if (
+    password !==
+    confirmPassword
+  ) {
+    throw new Error(
+      "كلمة المرور وتأكيد كلمة المرور غير متطابقين"
+    );
+  }
+
+  if (!role) {
+    throw new Error(
+      "يجب اختيار الصلاحية: Admin أو Manager"
+    );
+  }
+
+  /* =======================================================
+     REQUEST
+  ======================================================= */
+
+  const response =
+    await api.post(
+      "/api/auth/create-admin",
+      {
+        email,
+
+        password,
+
+        confirmPassword,
+
+        role,
+      }
+    );
 
   console.log(
     "CREATE ADMIN RESPONSE:",

@@ -8,22 +8,24 @@ import {
   EyeOff,
   CheckCircle,
   Loader2,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
   createAdmin,
 } from "@/services/login";
+
 /* =========================================================
    CREATE ADMIN PAGE
 ========================================================= */
 
 export default function CreateAdminAdmin() {
-  const [form, setForm] =
-    useState({
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
+const [form, setForm] = useState({
+  email: "",
+  password: "",
+  confirmPassword: "",
+  role: "Manager",
+});
 
   const [
     showPassword,
@@ -60,7 +62,6 @@ export default function CreateAdminAdmin() {
   ) => {
     setForm((previous) => ({
       ...previous,
-
       [field]: value,
     }));
 
@@ -88,6 +89,11 @@ export default function CreateAdminAdmin() {
       const confirmPassword =
         form.confirmPassword;
 
+      const role =
+        form.role;
+
+      /* EMAIL */
+
       if (!email) {
         setError(
           "من فضلك أدخل البريد الإلكتروني"
@@ -95,6 +101,8 @@ export default function CreateAdminAdmin() {
 
         return;
       }
+
+      /* PASSWORD */
 
       if (!password) {
         setError(
@@ -104,6 +112,8 @@ export default function CreateAdminAdmin() {
         return;
       }
 
+      /* CONFIRM PASSWORD */
+
       if (!confirmPassword) {
         setError(
           "من فضلك أكد كلمة المرور"
@@ -111,6 +121,8 @@ export default function CreateAdminAdmin() {
 
         return;
       }
+
+      /* PASSWORD MATCH */
 
       if (
         password !==
@@ -123,6 +135,16 @@ export default function CreateAdminAdmin() {
         return;
       }
 
+      /* ROLE */
+
+      if (!role) {
+        setError(
+          "من فضلك اختر صلاحية الأدمن"
+        );
+
+        return;
+      }
+
       setLoading(true);
 
       try {
@@ -130,6 +152,7 @@ export default function CreateAdminAdmin() {
           email,
           password,
           confirmPassword,
+  role: form.role,
         });
 
         setSuccess(
@@ -140,7 +163,11 @@ export default function CreateAdminAdmin() {
           email: "",
           password: "",
           confirmPassword: "",
+          role: "SubManager",
         });
+
+        setShowPassword(false);
+        setShowConfirmPassword(false);
       } catch (err) {
         console.error(
           "CREATE ADMIN ERROR:",
@@ -152,6 +179,28 @@ export default function CreateAdminAdmin() {
           err?.response?.data?.title ??
           err?.response?.data ??
           null;
+
+        if (
+          err?.response?.status ===
+          401
+        ) {
+          setError(
+            "غير مصرح لك بإضافة أدمن جديد"
+          );
+
+          return;
+        }
+
+        if (
+          err?.response?.status ===
+          403
+        ) {
+          setError(
+            "ليس لديك الصلاحية لإضافة أدمن جديد"
+          );
+
+          return;
+        }
 
         if (
           typeof backendMessage ===
@@ -204,7 +253,10 @@ export default function CreateAdminAdmin() {
           overflow-hidden
         "
       >
-        {/* HEADER */}
+
+        {/* =================================================
+            HEADER
+        ================================================== */}
 
         <div
           className="
@@ -264,14 +316,16 @@ export default function CreateAdminAdmin() {
                   mt-1
                 "
               >
-                إنشاء حساب جديد للدخول
-                إلى لوحة التحكم
+                إنشاء حساب جديد وتحديد
+                صلاحية الدخول إلى لوحة التحكم
               </p>
             </div>
           </div>
         </div>
 
-        {/* FORM */}
+        {/* =================================================
+            FORM
+        ================================================== */}
 
         <form
           onSubmit={
@@ -283,7 +337,10 @@ export default function CreateAdminAdmin() {
             space-y-5
           "
         >
-          {/* ERROR */}
+
+          {/* =================================================
+              ERROR
+          ================================================== */}
 
           {error && (
             <div
@@ -304,7 +361,9 @@ export default function CreateAdminAdmin() {
             </div>
           )}
 
-          {/* SUCCESS */}
+          {/* =================================================
+              SUCCESS
+          ================================================== */}
 
           {success && (
             <div
@@ -336,7 +395,9 @@ export default function CreateAdminAdmin() {
             </div>
           )}
 
-          {/* EMAIL */}
+          {/* =================================================
+              EMAIL
+          ================================================== */}
 
           <div>
             <label
@@ -394,7 +455,9 @@ export default function CreateAdminAdmin() {
             </div>
           </div>
 
-          {/* PASSWORD */}
+          {/* =================================================
+              PASSWORD
+          ================================================== */}
 
           <div>
             <label
@@ -461,6 +524,9 @@ export default function CreateAdminAdmin() {
                       !value
                   )
                 }
+                disabled={
+                  loading
+                }
                 className="
                   absolute
 
@@ -472,6 +538,8 @@ export default function CreateAdminAdmin() {
                   text-slate-400
 
                   hover:text-slate-700
+
+                  disabled:opacity-50
                 "
               >
                 {showPassword ? (
@@ -493,7 +561,9 @@ export default function CreateAdminAdmin() {
             </div>
           </div>
 
-          {/* CONFIRM PASSWORD */}
+          {/* =================================================
+              CONFIRM PASSWORD
+          ================================================== */}
 
           <div>
             <label
@@ -560,6 +630,9 @@ export default function CreateAdminAdmin() {
                       !value
                   )
                 }
+                disabled={
+                  loading
+                }
                 className="
                   absolute
 
@@ -571,6 +644,8 @@ export default function CreateAdminAdmin() {
                   text-slate-400
 
                   hover:text-slate-700
+
+                  disabled:opacity-50
                 "
               >
                 {showConfirmPassword ? (
@@ -592,7 +667,78 @@ export default function CreateAdminAdmin() {
             </div>
           </div>
 
-          {/* SUBMIT */}
+          {/* =================================================
+              ROLE
+          ================================================== */}
+
+          <div>
+            <label
+              className="
+                block
+
+                text-sm
+                font-bold
+                text-slate-700
+
+                mb-2
+              "
+            >
+              صلاحية الأدمن *
+            </label>
+
+            <div className="relative">
+              <ShieldCheck
+                className="
+                  absolute
+
+                  right-4
+                  top-1/2
+
+                  -translate-y-1/2
+
+                  w-5
+                  h-5
+
+                  text-slate-400
+
+                  pointer-events-none
+                "
+              />
+
+         <select
+  value={form.role}
+  onChange={(event) =>
+    handleChange("role", event.target.value)
+  }
+  className={`${inputClass} pr-12`}
+  required
+  disabled={loading}
+>
+  <option value="Manager">
+    Manager
+  </option>
+
+  <option value="Admin">
+    Admin
+  </option>
+</select>
+
+            </div>
+
+            <p
+              className="
+                text-xs
+                text-slate-500
+                mt-2
+              "
+            >
+              اختر مستوى الصلاحية للحساب الجديد
+            </p>
+          </div>
+
+          {/* =================================================
+              SUBMIT
+          ================================================== */}
 
           <div
             className="
@@ -643,6 +789,7 @@ export default function CreateAdminAdmin() {
               )}
             </button>
           </div>
+
         </form>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -27,9 +27,12 @@ import PartnersAdmin from "@/admin/PartnersAdmin";
 import StatisticsAdmin from "@/admin/StatisticsAdmin";
 import ContentAdmin from "@/admin/ContentAdmin";
 import ComplaintsAdmin from "@/admin/ComplaintsAdmin";
-
-/* إضافة */
+import ContactInfoAdmin from "@/admin/ContactInfoAdmin";
 import CreateAdminAdmin from "@/admin/CreateAdminAdmin";
+
+import {
+  canCreateAdmin,
+} from "@/lib/permissions";
 
 /* =========================================================
    SIDEBAR ITEMS
@@ -90,14 +93,11 @@ const sidebarItems = [
     icon: MessageSquareText,
   },
 
-  /* =========================
-     CREATE ADMIN
-  ========================== */
-
   {
     key: "create-admin",
     label: "إضافة أدمن",
     icon: UserPlus,
+    adminOnly: true,
   },
 ];
 
@@ -106,13 +106,51 @@ const sidebarItems = [
 ========================================================= */
 
 export default function Admin() {
-  const [active, setActive] =
-    useState("appointments");
+  const [
+    active,
+    setActive,
+  ] = useState(
+    "appointments"
+  );
 
   const [
     sidebarOpen,
     setSidebarOpen,
   ] = useState(false);
+
+  /* =======================================================
+     PERMISSIONS
+  ======================================================= */
+
+  const userCanCreateAdmin =
+    canCreateAdmin();
+
+  /*
+    Admin:
+    يشوف كل العناصر.
+
+    Manager:
+    يشوف كل العناصر ما عدا
+    العناصر المحددة adminOnly.
+  */
+
+  const visibleSidebarItems =
+    useMemo(() => {
+      return sidebarItems.filter(
+        (item) => {
+          if (
+            item.adminOnly &&
+            !userCanCreateAdmin
+          ) {
+            return false;
+          }
+
+          return true;
+        }
+      );
+    }, [
+      userCanCreateAdmin,
+    ]);
 
   /* =======================================================
      CONTENT
@@ -121,25 +159,39 @@ export default function Admin() {
   const renderContent = () => {
     switch (active) {
       case "appointments":
-        return <AppointmentsAdmin />;
+        return (
+          <AppointmentsAdmin />
+        );
 
       case "doctors":
-        return <DoctorsAdmin />;
+        return (
+          <DoctorsAdmin />
+        );
 
       case "departments":
-        return <DepartmentsAdmin />;
+        return (
+          <DepartmentsAdmin />
+        );
 
       case "staff":
-        return <StaffAdmin />;
+        return (
+          <StaffAdmin />
+        );
 
       case "equipment":
-        return <EquipmentAdmin />;
+        return (
+          <EquipmentAdmin />
+        );
 
       case "partners":
-        return <PartnersAdmin />;
+        return (
+          <PartnersAdmin />
+        );
 
       case "statistics":
-        return <StatisticsAdmin />;
+        return (
+          <StatisticsAdmin />
+        );
 
       case "about":
         return (
@@ -165,28 +217,59 @@ export default function Admin() {
           />
         );
 
+      /* =================================================
+         CONTACT INFO
+      ================================================= */
+
       case "contact":
         return (
-          <ContentAdmin
-            section="contact"
-            title="معلومات التواصل"
-          />
+          <ContactInfoAdmin />
         );
 
-      case "complaints":
-        return <ComplaintsAdmin />;
+      /* =================================================
+         COMPLAINTS
+      ================================================= */
 
-      /* =========================
+      case "complaints":
+        return (
+          <ComplaintsAdmin />
+        );
+
+      /* =================================================
          CREATE ADMIN
-      ========================== */
+         ADMIN ONLY
+      ================================================= */
 
       case "create-admin":
-        return <CreateAdminAdmin />;
+        if (
+          !userCanCreateAdmin
+        ) {
+          return (
+            <AppointmentsAdmin />
+          );
+        }
+
+        return (
+          <CreateAdminAdmin />
+        );
 
       default:
-        return <AppointmentsAdmin />;
+        return (
+          <AppointmentsAdmin />
+        );
     }
   };
+
+  /* =======================================================
+     ACTIVE PAGE TITLE
+  ======================================================= */
+
+  const activePageLabel =
+    visibleSidebarItems.find(
+      (item) =>
+        item.key === active
+    )?.label ||
+    "المواعيد";
 
   /* =======================================================
      UI
@@ -232,6 +315,7 @@ export default function Admin() {
         `}
       >
         <div className="p-6">
+
           {/* LOGO */}
 
           <Link
@@ -240,7 +324,6 @@ export default function Admin() {
               flex
               items-center
               gap-3
-
               mb-8
             "
           >
@@ -248,13 +331,10 @@ export default function Admin() {
               className="
                 w-11
                 h-11
-
                 rounded-2xl
-
                 bg-gradient-to-br
                 from-primary-500
                 to-secondary-500
-
                 flex
                 items-center
                 justify-center
@@ -276,7 +356,7 @@ export default function Admin() {
                   text-white
                 "
               >
-                مستشفي رواد الطب
+                مستشفى رواد الطب
               </h2>
 
               <p
@@ -295,22 +375,21 @@ export default function Admin() {
           <nav
             className="
               space-y-1
-
               max-h-[calc(100vh-120px)]
-
               overflow-y-auto
-
               no-scrollbar
             "
           >
-            {sidebarItems.map(
+            {visibleSidebarItems.map(
               (item) => {
                 const Icon =
                   item.icon;
 
                 return (
                   <button
-                    key={item.key}
+                    key={
+                      item.key
+                    }
                     type="button"
                     onClick={() => {
                       setActive(
@@ -323,19 +402,14 @@ export default function Admin() {
                     }}
                     className={`
                       w-full
-
                       flex
                       items-center
                       gap-3
-
                       px-4
                       py-3
-
                       rounded-xl
-
                       font-bold
                       text-sm
-
                       transition-all
 
                       ${
@@ -345,14 +419,11 @@ export default function Admin() {
                             bg-gradient-to-l
                             from-primary-600
                             to-secondary-600
-
                             text-white
-
                             shadow-lg
                           `
                           : `
                             text-slate-400
-
                             hover:bg-slate-800
                             hover:text-white
                           `
@@ -367,12 +438,15 @@ export default function Admin() {
                       "
                     />
 
-                    {item.label}
+                    {
+                      item.label
+                    }
                   </button>
                 );
               }
             )}
           </nav>
+
         </div>
       </aside>
 
@@ -385,15 +459,14 @@ export default function Admin() {
           className="
             fixed
             inset-0
-
             bg-black/50
-
             z-30
-
             lg:hidden
           "
           onClick={() =>
-            setSidebarOpen(false)
+            setSidebarOpen(
+              false
+            )
           }
         />
       )}
@@ -413,12 +486,9 @@ export default function Admin() {
         <header
           className="
             bg-white
-
             shadow-sm
-
             sticky
             top-0
-
             z-20
           "
         >
@@ -427,7 +497,6 @@ export default function Admin() {
               flex
               items-center
               justify-between
-
               px-6
               py-4
             "
@@ -450,11 +519,8 @@ export default function Admin() {
                 }
                 className="
                   lg:hidden
-
                   p-2
-
                   rounded-xl
-
                   hover:bg-slate-100
                 "
               >
@@ -483,11 +549,7 @@ export default function Admin() {
                 "
               >
                 {
-                  sidebarItems.find(
-                    (item) =>
-                      item.key ===
-                      active
-                  )?.label
+                  activePageLabel
                 }
               </h1>
             </div>
@@ -507,14 +569,10 @@ export default function Admin() {
                   flex
                   items-center
                   gap-2
-
                   text-sm
                   text-slate-600
-
                   hover:text-primary-600
-
                   font-bold
-
                   transition-colors
                 "
               >
@@ -528,6 +586,7 @@ export default function Admin() {
                 العودة للموقع
               </Link>
             </div>
+
           </div>
         </header>
 
@@ -536,7 +595,9 @@ export default function Admin() {
         <div className="p-6">
           {renderContent()}
         </div>
+
       </div>
+
     </div>
   );
 }
