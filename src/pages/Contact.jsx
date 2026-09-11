@@ -20,14 +20,8 @@ import Reveal from "@/components/Reveal";
 
 import {
   getContactInfo,
+  createPatientFeedback,
 } from "@/services/contact";
-
-/* =========================================================
-   CONSTANTS
-========================================================= */
-
-const COMPLAINTS_STORAGE_KEY =
-  "road_hospital_complaints";
 
 /* =========================================================
    HELPERS
@@ -386,128 +380,87 @@ export default function Contact() {
 
   /* =======================================================
      SUBMIT COMPLAINT / SUGGESTION
+
+     POST /api/PatientFeedbacks
   ======================================================= */
 
-  const handleSubmit = (
-    event
-  ) => {
-    event.preventDefault();
+  const handleSubmit =
+    async (
+      event
+    ) => {
+      event.preventDefault();
 
-    const trimmedName =
-      form.name.trim();
+      const trimmedName =
+        form.name.trim();
 
-    const trimmedMessage =
-      form.message.trim();
+      const trimmedMessage =
+        form.message.trim();
 
-    if (
-      !trimmedName ||
-      !trimmedMessage
-    ) {
-      setSubmitState({
-        type:
-          "error",
+      if (
+        !trimmedName ||
+        !trimmedMessage
+      ) {
+        setSubmitState({
+          type:
+            "error",
 
-        message:
-          "يرجى إدخال الاسم ونص الرسالة.",
-      });
+          message:
+            "يرجى إدخال الاسم ونص الرسالة.",
+        });
 
-      return;
-    }
+        return;
+      }
 
-    setIsSubmitting(
-      true
-    );
+      try {
+        setIsSubmitting(
+          true
+        );
 
-    try {
-      const existing =
-        (() => {
-          try {
-            const raw =
-              window.localStorage.getItem(
-                COMPLAINTS_STORAGE_KEY
-              );
+        setSubmitState({
+          type: "",
+          message: "",
+        });
 
-            const parsed =
-              raw
-                ? JSON.parse(
-                    raw
-                  )
-                : [];
+        await createPatientFeedback({
+          name:
+            trimmedName,
 
-            return Array.isArray(
-              parsed
-            )
-              ? parsed
-              : [];
-          } catch (error) {
-            console.error(
-              "READ COMPLAINTS ERROR:",
-              error
-            );
+          message:
+            trimmedMessage,
+        });
 
-            return [];
-          }
-        })();
+        setForm({
+          name: "",
+          message: "",
+        });
 
-      const complaint = {
-        id:
-          String(
-            Date.now()
-          ),
+        setSubmitState({
+          type:
+            "success",
 
-        name:
-          trimmedName,
+          message:
+            "تم إرسال رسالتك بنجاح، شكرًا لتواصلك معنا.",
+        });
+      } catch (error) {
+        console.error(
+          "SEND PATIENT FEEDBACK ERROR:",
+          error?.response?.data ||
+            error
+        );
 
-        message:
-          trimmedMessage,
+        setSubmitState({
+          type:
+            "error",
 
-        createdAt:
-          new Date().toISOString(),
-      };
-
-      const next = [
-        complaint,
-        ...existing,
-      ];
-
-      window.localStorage.setItem(
-        COMPLAINTS_STORAGE_KEY,
-        JSON.stringify(
-          next
-        )
-      );
-
-      setForm({
-        name: "",
-        message: "",
-      });
-
-      setSubmitState({
-        type:
-          "success",
-
-        message:
-          "تم إرسال رسالتك بنجاح، شكرًا لتواصلك معنا.",
-      });
-    } catch (error) {
-      console.error(
-        "SAVE COMPLAINT ERROR:",
-        error
-      );
-
-      setSubmitState({
-        type:
-          "error",
-
-        message:
-          "حدث خطأ أثناء إرسال رسالتك، يرجى المحاولة مرة أخرى.",
-      });
-    } finally {
-      setIsSubmitting(
-        false
-      );
-    }
-  };
+          message:
+            "حدث خطأ أثناء إرسال رسالتك، يرجى المحاولة مرة أخرى.",
+        });
+      } finally {
+        setIsSubmitting(
+          false
+        );
+      }
+    };
 
   /* =======================================================
      RETURN
@@ -676,6 +629,9 @@ export default function Contact() {
                     onChange={
                       handleChange
                     }
+                    disabled={
+                      isSubmitting
+                    }
                     placeholder="اكتب اسمك"
                     className="
                       w-full
@@ -689,6 +645,7 @@ export default function Contact() {
                       outline-none
                       transition
                       focus:border-primary-400
+                      disabled:opacity-60
                     "
                   />
 
@@ -718,6 +675,9 @@ export default function Contact() {
                     onChange={
                       handleChange
                     }
+                    disabled={
+                      isSubmitting
+                    }
                     rows={6}
                     placeholder="اكتب شكواك أو مقترحك هنا"
                     className="
@@ -732,6 +692,7 @@ export default function Contact() {
                       outline-none
                       transition
                       focus:border-primary-400
+                      disabled:opacity-60
                     "
                   />
 
@@ -892,6 +853,7 @@ export default function Contact() {
           {!contactLoading &&
             hasContactInfo && (
               <>
+
                 {/* CARDS */}
 
                 {contactCards.length >
@@ -991,6 +953,7 @@ export default function Contact() {
                               {card.key ===
                                 "phone" && (
                                 <>
+
                                   {contact.phone && (
                                     <a
                                       href={`tel:${contact.phone}`}
@@ -1033,6 +996,7 @@ export default function Contact() {
 
                                     </div>
                                   )}
+
                                 </>
                               )}
 
@@ -1079,9 +1043,6 @@ export default function Contact() {
 
                 {/* =================================================
                     MAP
-
-                    لا تظهر إلا لو عندنا
-                    mapUrl أو address حقيقي.
                 ================================================= */}
 
                 {mapSrc && (
@@ -1107,8 +1068,10 @@ export default function Contact() {
                           style={{
                             border:
                               0,
+
                             width:
                               "100%",
+
                             height:
                               "100%",
                           }}
@@ -1241,6 +1204,7 @@ export default function Contact() {
                   </div>
 
                 </Reveal>
+
               </>
             )}
 

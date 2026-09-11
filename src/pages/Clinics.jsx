@@ -1,4 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import {
   useNavigate,
   useParams,
@@ -33,9 +38,16 @@ import {
   getDoctor,
 } from "@/services/doctors";
 
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
 const BACKEND_ORIGIN =
   import.meta.env.VITE_BACKEND_ORIGIN ||
   "http://rewaddashboard.runasp.net";
+
+const PHYSICAL_THERAPY_DEPARTMENT_NAME =
+  "العلاج الطبيعي";
 
 /* =========================================================
    DEPARTMENT ICONS
@@ -57,7 +69,9 @@ const departmentIcons = {
    HELPERS
 ========================================================= */
 
-const normalizeText = (value) =>
+const normalizeText = (
+  value
+) =>
   String(value || "")
     .trim()
     .toLowerCase()
@@ -65,26 +79,78 @@ const normalizeText = (value) =>
     .replace(/ى/g, "ي")
     .replace(/ؤ/g, "و")
     .replace(/ئ/g, "ي")
-    .replace(/[ًٌٍَُِّْـ]/g, "")
-    .replace(/\s+/g, " ");
+    .replace(
+      /[ًٌٍَُِّْـ]/g,
+      ""
+    )
+    .replace(
+      /\s+/g,
+      " "
+    );
 
-const getBackendImageUrl = (imageUrl) => {
+/* =========================================================
+   PHYSICAL THERAPY CHECK
+========================================================= */
+
+const isPhysicalTherapyDepartment = (
+  department
+) => {
+  if (!department) {
+    return false;
+  }
+
+  const departmentName =
+    department.name ??
+    department.Name ??
+    "";
+
+  return (
+    normalizeText(
+      departmentName
+    ) ===
+    normalizeText(
+      PHYSICAL_THERAPY_DEPARTMENT_NAME
+    )
+  );
+};
+
+/* =========================================================
+   IMAGE URL
+========================================================= */
+
+const getBackendImageUrl = (
+  imageUrl
+) => {
   if (!imageUrl) {
     return "";
   }
 
+  const value =
+    String(
+      imageUrl
+    ).trim();
+
   if (
-    imageUrl.startsWith("http://") ||
-    imageUrl.startsWith("https://") ||
-    imageUrl.startsWith("blob:")
+    value.startsWith(
+      "http://"
+    ) ||
+    value.startsWith(
+      "https://"
+    ) ||
+    value.startsWith(
+      "blob:"
+    ) ||
+    value.startsWith(
+      "data:"
+    )
   ) {
-    return imageUrl;
+    return value;
   }
 
   return `${BACKEND_ORIGIN}${
-    imageUrl.startsWith("/")
-      ? imageUrl
-      : `/${imageUrl}`
+    value.startsWith("/")
+      ? value
+      : `/${value}`
   }`;
 };
 
@@ -92,7 +158,9 @@ const getBackendImageUrl = (imageUrl) => {
    DEPARTMENT
 ========================================================= */
 
-const normalizeDepartment = (department) => ({
+const normalizeDepartment = (
+  department
+) => ({
   ...department,
 
   id:
@@ -115,12 +183,13 @@ const normalizeDepartment = (department) => ({
     department.Icon ??
     "stethoscope",
 
-  image_url: getBackendImageUrl(
-    department.imageUrl ??
-      department.ImageUrl ??
-      department.image_url ??
-      ""
-  ),
+  image_url:
+    getBackendImageUrl(
+      department.imageUrl ??
+        department.ImageUrl ??
+        department.image_url ??
+        ""
+    ),
 });
 
 /* =========================================================
@@ -145,7 +214,9 @@ const DAY_LABELS = {
   saturday: "السبت",
 };
 
-const getArabicDayLabel = (day) => {
+const getArabicDayLabel = (
+  day
+) => {
   if (
     day === null ||
     day === undefined ||
@@ -154,10 +225,11 @@ const getArabicDayLabel = (day) => {
     return "";
   }
 
-  /* Object */
+  /* OBJECT */
 
   if (
-    typeof day === "object" &&
+    typeof day ===
+      "object" &&
     day !== null
   ) {
     const dayId =
@@ -169,9 +241,13 @@ const getArabicDayLabel = (day) => {
     if (
       dayId !== null &&
       dayId !== undefined &&
-      DAY_LABELS[Number(dayId)]
+      DAY_LABELS[
+        Number(dayId)
+      ]
     ) {
-      return DAY_LABELS[Number(dayId)];
+      return DAY_LABELS[
+        Number(dayId)
+      ];
     }
 
     const dayName =
@@ -183,22 +259,29 @@ const getArabicDayLabel = (day) => {
       day.DayName ??
       "";
 
-    return getArabicDayLabel(dayName);
+    return getArabicDayLabel(
+      dayName
+    );
   }
 
-  /* Number */
+  /* NUMBER */
 
-  const numericDay = Number(day);
+  const numericDay =
+    Number(day);
 
   if (
-    Number.isInteger(numericDay) &&
+    Number.isInteger(
+      numericDay
+    ) &&
     numericDay >= 0 &&
     numericDay <= 6
   ) {
-    return DAY_LABELS[numericDay];
+    return DAY_LABELS[
+      numericDay
+    ];
   }
 
-  /* English String */
+  /* ENGLISH STRING */
 
   const value =
     String(day)
@@ -211,7 +294,9 @@ const getArabicDayLabel = (day) => {
   );
 };
 
-const normalizeWorkingDaysArray = (value) => {
+const normalizeWorkingDaysArray = (
+  value
+) => {
   if (
     value === null ||
     value === undefined ||
@@ -220,28 +305,37 @@ const normalizeWorkingDaysArray = (value) => {
     return [];
   }
 
-  if (Array.isArray(value)) {
+  if (
+    Array.isArray(
+      value
+    )
+  ) {
     return value;
   }
 
-  /*
-    لو Backend رجع:
-    "Sunday,Thursday"
-    أو
-    "0,4"
-  */
-
-  if (typeof value === "string") {
+  if (
+    typeof value ===
+    "string"
+  ) {
     return value
-      .split(/[,|;]+/)
-      .map((item) => item.trim())
+      .split(
+        /[,|;]+/
+      )
+      .map(
+        (
+          item
+        ) =>
+          item.trim()
+      )
       .filter(Boolean);
   }
 
   return [];
 };
 
-const extractDoctorWorkingDays = (doctor) => {
+const extractDoctorWorkingDays = (
+  doctor
+) => {
   if (!doctor) {
     return [];
   }
@@ -258,17 +352,25 @@ const extractDoctorWorkingDays = (doctor) => {
     doctor.WorkingDaysIds ??
     [];
 
-  return normalizeWorkingDaysArray(rawDays);
+  return normalizeWorkingDaysArray(
+    rawDays
+  );
 };
 
-const getWorkingDaysLabels = (doctor) => {
+const getWorkingDaysLabels = (
+  doctor
+) => {
   const days =
-    extractDoctorWorkingDays(doctor);
+    extractDoctorWorkingDays(
+      doctor
+    );
 
   return [
     ...new Set(
       days
-        .map(getArabicDayLabel)
+        .map(
+          getArabicDayLabel
+        )
         .filter(Boolean)
     ),
   ];
@@ -278,7 +380,9 @@ const getWorkingDaysLabels = (doctor) => {
    NORMALIZE DOCTOR
 ========================================================= */
 
-const normalizeDoctor = (doctor) => ({
+const normalizeDoctor = (
+  doctor
+) => ({
   ...doctor,
 
   id:
@@ -319,14 +423,15 @@ const normalizeDoctor = (doctor) => ({
     doctor.department_name ??
     "",
 
-  image_url: getBackendImageUrl(
-    doctor.imageUrl ??
-      doctor.ImageUrl ??
-      doctor.image_url ??
-      doctor.image ??
-      doctor.Image ??
-      ""
-  ),
+  image_url:
+    getBackendImageUrl(
+      doctor.imageUrl ??
+        doctor.ImageUrl ??
+        doctor.image_url ??
+        doctor.image ??
+        doctor.Image ??
+        ""
+    ),
 
   status:
     doctor.status ??
@@ -334,7 +439,9 @@ const normalizeDoctor = (doctor) => ({
     "",
 
   working_days:
-    extractDoctorWorkingDays(doctor),
+    extractDoctorWorkingDays(
+      doctor
+    ),
 
   qualification:
     doctor.qualification ??
@@ -346,7 +453,9 @@ const normalizeDoctor = (doctor) => ({
    STATUS
 ========================================================= */
 
-const isDoctorActive = (status) => {
+const isDoctorActive = (
+  status
+) => {
   if (
     status === null ||
     status === undefined ||
@@ -356,9 +465,12 @@ const isDoctorActive = (status) => {
   }
 
   if (
-    typeof status === "number"
+    typeof status ===
+    "number"
   ) {
-    return status === 0;
+    return (
+      status === 0
+    );
   }
 
   const numericStatus =
@@ -377,17 +489,26 @@ const isDoctorActive = (status) => {
   }
 
   const value =
-    normalizeText(status);
+    normalizeText(
+      status
+    );
 
   return (
-    value === "active" ||
-    value === "نشط" ||
-    value === "متاح"
+    value ===
+      "active" ||
+    value ===
+      "نشط" ||
+    value ===
+      "متاح"
   );
 };
 
-const getStatusLabel = (status) =>
-  isDoctorActive(status)
+const getStatusLabel = (
+  status
+) =>
+  isDoctorActive(
+    status
+  )
     ? "متاح"
     : "غير متاح";
 
@@ -397,27 +518,68 @@ const getStatusLabel = (status) =>
 
 function ClinicsList() {
   const {
-    data: departments = [],
-    loading: deptLoading,
+    data:
+      departments = [],
+    loading:
+      deptLoading,
   } = useDepartments();
+
+  /*
+    هنا بنجيب كل الأقسام من Backend
+  */
 
   const normalizedDepartments =
     useMemo(
       () =>
-        Array.isArray(departments)
+        Array.isArray(
+          departments
+        )
           ? departments.map(
               normalizeDepartment
             )
           : [],
-      [departments]
+      [
+        departments,
+      ]
+    );
+
+  /*
+    IMPORTANT:
+
+    العلاج الطبيعي موجود في Backend
+    لكنه مش عيادة خارجية.
+
+    لذلك نستبعده فقط من صفحة
+    العيادات الخارجية.
+  */
+
+  const outpatientDepartments =
+    useMemo(
+      () =>
+        normalizedDepartments.filter(
+          (
+            department
+          ) =>
+            !isPhysicalTherapyDepartment(
+              department
+            )
+        ),
+      [
+        normalizedDepartments,
+      ]
     );
 
   return (
     <>
-      {/* HERO */}
+
+      {/* =====================================================
+          HERO
+      ===================================================== */}
 
       <section className="relative py-20 overflow-hidden">
+
         <div className="absolute inset-0">
+
           <img
             src="https://images.pexels.com/photos/40568/medical-appointment-doctor-healthcare-40568.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt=""
@@ -425,10 +587,13 @@ function ClinicsList() {
           />
 
           <div className="absolute inset-0 hero-overlay" />
+
         </div>
 
         <div className="container-custom relative z-10 text-center">
+
           <Reveal>
+
             <span
               className="
                 inline-block
@@ -470,16 +635,23 @@ function ClinicsList() {
             >
               اختر القسم ثم الطبيب واحجز موعدك في خطوات بسيطة
             </p>
+
           </Reveal>
+
         </div>
+
       </section>
 
-      {/* DEPARTMENTS */}
+      {/* =====================================================
+          DEPARTMENTS
+      ===================================================== */}
 
       <section className="section-padding bg-slate-50">
+
         <div className="px-8">
 
           {deptLoading ? (
+
             <div
               className="
                 grid
@@ -489,28 +661,44 @@ function ClinicsList() {
                 gap-6
               "
             >
+
               {Array.from({
                 length: 12,
-              }).map((_, i) => (
-                <div
-                  key={i}
-                  className="
-                    card
-                    p-8
-                    shimmer-bg
-                    h-64
-                    rounded-2xl
-                  "
-                />
-              ))}
+              }).map(
+                (
+                  _,
+                  index
+                ) => (
+                  <div
+                    key={
+                      index
+                    }
+                    className="
+                      card
+                      p-8
+                      shimmer-bg
+                      h-64
+                      rounded-2xl
+                    "
+                  />
+                )
+              )}
+
             </div>
-          ) : normalizedDepartments.length === 0 ? (
+
+          ) : outpatientDepartments.length ===
+            0 ? (
+
             <div className="text-center py-16">
+
               <p className="text-slate-500 text-lg">
                 لا توجد أقسام متاحة حالياً
               </p>
+
             </div>
+
           ) : (
+
             <div
               className="
                 grid
@@ -520,11 +708,16 @@ function ClinicsList() {
                 gap-6
               "
             >
-              {normalizedDepartments.map(
-                (dept, idx) => {
+
+              {outpatientDepartments.map(
+                (
+                  dept,
+                  idx
+                ) => {
                   const Icon =
                     departmentIcons[
-                      dept.icon || ""
+                      dept.icon ||
+                        ""
                     ] ||
                     Stethoscope;
 
@@ -534,8 +727,12 @@ function ClinicsList() {
                         dept.id ??
                         `${dept.name}-${idx}`
                       }
-                      delay={idx * 50}
+                      delay={
+                        idx *
+                        50
+                      }
                     >
+
                       <Link
                         to={`/clinics/${dept.id}`}
                         className="
@@ -549,6 +746,7 @@ function ClinicsList() {
                           block
                         "
                       >
+
                         <div
                           className="
                             w-20
@@ -569,10 +767,16 @@ function ClinicsList() {
                             duration-500
                           "
                         >
+
                           {dept.image_url ? (
+
                             <img
-                              src={dept.image_url}
-                              alt={dept.name}
+                              src={
+                                dept.image_url
+                              }
+                              alt={
+                                dept.name
+                              }
                               className="
                                 w-12
                                 h-12
@@ -582,7 +786,9 @@ function ClinicsList() {
                                 group-hover:scale-110
                               "
                             />
+
                           ) : (
+
                             <Icon
                               className="
                                 w-10
@@ -593,7 +799,9 @@ function ClinicsList() {
                                 duration-500
                               "
                             />
+
                           )}
+
                         </div>
 
                         <h3
@@ -604,10 +812,13 @@ function ClinicsList() {
                             mb-2
                           "
                         >
-                          {dept.name}
+                          {
+                            dept.name
+                          }
                         </h3>
 
                         {dept.description && (
+
                           <p
                             className="
                               text-slate-600
@@ -617,8 +828,11 @@ function ClinicsList() {
                               mb-4
                             "
                           >
-                            {dept.description}
+                            {
+                              dept.description
+                            }
                           </p>
+
                         )}
 
                         <span
@@ -637,16 +851,21 @@ function ClinicsList() {
 
                           <ArrowLeft className="w-4 h-4" />
                         </span>
+
                       </Link>
+
                     </Reveal>
                   );
                 }
               )}
+
             </div>
           )}
 
         </div>
+
       </section>
+
     </>
   );
 }
@@ -664,13 +883,17 @@ function DepartmentDetailPage() {
     useNavigate();
 
   const {
-    data: departments = [],
-    loading: deptLoading,
+    data:
+      departments = [],
+    loading:
+      deptLoading,
   } = useDepartments();
 
   const {
-    data: doctors = [],
-    loading: doctorsLoading,
+    data:
+      doctors = [],
+    loading:
+      doctorsLoading,
   } = useDoctors();
 
   const normalizedDepartments =
@@ -683,7 +906,9 @@ function DepartmentDetailPage() {
               normalizeDepartment
             )
           : [],
-      [departments]
+      [
+        departments,
+      ]
     );
 
   const normalizedDoctors =
@@ -696,20 +921,79 @@ function DepartmentDetailPage() {
               normalizeDoctor
             )
           : [],
-      [doctors]
+      [
+        doctors,
+      ]
     );
 
-  const department =
+  /*
+    نبحث عن القسم أولاً
+    وسط كل الأقسام.
+  */
+
+  const requestedDepartment =
     useMemo(() => {
       return normalizedDepartments.find(
-        (item) =>
-          String(item.id) ===
-          String(slug)
+        (
+          item
+        ) =>
+          String(
+            item.id
+          ) ===
+          String(
+            slug
+          )
       );
     }, [
       normalizedDepartments,
       slug,
     ]);
+
+  /*
+    لو الـID ده خاص بالعلاج الطبيعي
+    نخرجه تماماً من /clinics
+    ونحوّله لصفحته المستقلة.
+  */
+
+  const requestedIsPhysicalTherapy =
+    useMemo(
+      () =>
+        isPhysicalTherapyDepartment(
+          requestedDepartment
+        ),
+      [
+        requestedDepartment,
+      ]
+    );
+
+  useEffect(() => {
+    if (
+      !deptLoading &&
+      requestedIsPhysicalTherapy
+    ) {
+      navigate(
+        "/physical-therapy",
+        {
+          replace: true,
+        }
+      );
+    }
+  }, [
+    deptLoading,
+    requestedIsPhysicalTherapy,
+    navigate,
+  ]);
+
+  /*
+    القسم المستخدم فعلياً
+    في العيادات الخارجية
+    لا يمكن أن يكون علاج طبيعي.
+  */
+
+  const department =
+    requestedIsPhysicalTherapy
+      ? null
+      : requestedDepartment;
 
   const deptDoctors =
     useMemo(() => {
@@ -718,10 +1002,14 @@ function DepartmentDetailPage() {
       }
 
       return normalizedDoctors.filter(
-        (doctor) => {
+        (
+          doctor
+        ) => {
           const sameDepartmentById =
-            doctor.department_id !== null &&
-            doctor.department_id !== undefined &&
+            doctor.department_id !==
+              null &&
+            doctor.department_id !==
+              undefined &&
             String(
               doctor.department_id
             ) ===
@@ -752,9 +1040,13 @@ function DepartmentDetailPage() {
      LOADING
   ======================================================= */
 
-  if (deptLoading) {
+  if (
+    deptLoading ||
+    requestedIsPhysicalTherapy
+  ) {
     return (
       <div className="pt-24 min-h-screen bg-slate-50">
+
         <div className="container-custom py-20">
 
           <div className="h-40 rounded-3xl shimmer-bg" />
@@ -764,16 +1056,23 @@ function DepartmentDetailPage() {
             {Array.from({
               length: 4,
             }).map(
-              (_, index) => (
+              (
+                _,
+                index
+              ) => (
                 <div
-                  key={index}
+                  key={
+                    index
+                  }
                   className="h-72 rounded-3xl shimmer-bg"
                 />
               )
             )}
 
           </div>
+
         </div>
+
       </div>
     );
   }
@@ -793,6 +1092,7 @@ function DepartmentDetailPage() {
           justify-center
         "
       >
+
         <div className="text-center">
 
           <p className="text-slate-500 text-lg mb-4">
@@ -812,20 +1112,24 @@ function DepartmentDetailPage() {
           </button>
 
         </div>
+
       </div>
     );
   }
 
   const Icon =
     departmentIcons[
-      department.icon || ""
+      department.icon ||
+        ""
     ] ||
     Stethoscope;
 
   return (
     <div className="pt-24">
 
-      {/* DEPARTMENT HERO */}
+      {/* =====================================================
+          DEPARTMENT HERO
+      ===================================================== */}
 
       <section
         className="
@@ -834,6 +1138,7 @@ function DepartmentDetailPage() {
           overflow-hidden
         "
       >
+
         <div className="absolute inset-0 animated-gradient" />
 
         <div
@@ -843,6 +1148,7 @@ function DepartmentDetailPage() {
             z-10
           "
         >
+
           <button
             type="button"
             onClick={() =>
@@ -884,6 +1190,7 @@ function DepartmentDetailPage() {
             </div>
 
             <div>
+
               <h1
                 className="
                   text-3xl
@@ -893,71 +1200,110 @@ function DepartmentDetailPage() {
                   mb-2
                 "
               >
-                {department.name}
+                {
+                  department.name
+                }
               </h1>
 
               {department.description && (
+
                 <p className="text-white/80">
-                  {department.description}
+                  {
+                    department.description
+                  }
                 </p>
+
               )}
+
             </div>
 
           </div>
+
         </div>
+
       </section>
 
-      {/* DOCTORS */}
+      {/* =====================================================
+          DOCTORS
+      ===================================================== */}
 
       <section className="section-padding bg-[#F8FAFB]">
+
         <div className="container-custom">
 
           <Reveal>
+
             <SectionHeading
               badge="أطباء القسم"
               title={`أطباء ${department.name}`}
               subtitle="اختر الطبيب المناسب واحجز موعدك مباشرة"
             />
+
           </Reveal>
 
           {doctorsLoading ? (
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {Array.from({
                 length: 4,
               }).map(
-                (_, index) => (
+                (
+                  _,
+                  index
+                ) => (
                   <div
-                    key={index}
+                    key={
+                      index
+                    }
                     className="h-[370px] rounded-3xl shimmer-bg"
                   />
                 )
               )}
 
             </div>
-          ) : deptDoctors.length === 0 ? (
+
+          ) : deptDoctors.length ===
+            0 ? (
+
             <div className="text-center py-16">
+
               <p className="text-slate-500 text-lg">
                 لا يوجد أطباء في هذا القسم حالياً
               </p>
+
             </div>
+
           ) : (
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {deptDoctors.map(
-                (doctor, idx) => (
+                (
+                  doctor,
+                  idx
+                ) => (
                   <Reveal
                     key={
                       doctor.id ??
                       `${doctor.name}-${idx}`
                     }
-                    delay={idx * 80}
+                    delay={
+                      idx *
+                      80
+                    }
                     className="h-full"
                   >
+
                     <DoctorCard
-                      doctor={doctor}
-                      department={department}
+                      doctor={
+                        doctor
+                      }
+                      department={
+                        department
+                      }
                     />
+
                   </Reveal>
                 )
               )}
@@ -966,7 +1312,9 @@ function DepartmentDetailPage() {
           )}
 
         </div>
+
       </section>
+
     </div>
   );
 }
@@ -986,14 +1334,30 @@ function DoctorCard({
   const [
     doctorDetails,
     setDoctorDetails,
-  ] = useState(doctor);
+  ] = useState(
+    doctor
+  );
 
   const [
     detailsLoading,
     setDetailsLoading,
   ] = useState(
-    Boolean(doctor.id)
+    Boolean(
+      doctor.id
+    )
   );
+
+  /* =======================================================
+     SYNC DOCTOR PROP
+  ======================================================= */
+
+  useEffect(() => {
+    setDoctorDetails(
+      doctor
+    );
+  }, [
+    doctor,
+  ]);
 
   /* =======================================================
      GET FULL DOCTOR DETAILS
@@ -1005,7 +1369,9 @@ function DoctorCard({
 
     const loadDoctorDetails =
       async () => {
-        if (!doctor.id) {
+        if (
+          !doctor.id
+        ) {
           setDoctorDetails(
             doctor
           );
@@ -1032,55 +1398,76 @@ function DoctorCard({
             details
           );
 
-          if (cancelled) {
+          if (
+            cancelled
+          ) {
             return;
           }
 
-       const detailsWorkingDays =
-  extractDoctorWorkingDays(details);
+          const normalizedDetails =
+            details
+              ? normalizeDoctor(
+                  details
+                )
+              : null;
 
-const originalWorkingDays =
-  extractDoctorWorkingDays(doctor);
+          const detailsWorkingDays =
+            extractDoctorWorkingDays(
+              normalizedDetails
+            );
 
-const finalWorkingDays =
-  detailsWorkingDays.length > 0
-    ? detailsWorkingDays
-    : originalWorkingDays;
+          const originalWorkingDays =
+            extractDoctorWorkingDays(
+              doctor
+            );
 
-setDoctorDetails({
-  ...doctor,
-  ...details,
+          const finalWorkingDays =
+            detailsWorkingDays.length >
+            0
+              ? detailsWorkingDays
+              : originalWorkingDays;
 
-  department_id:
-    doctor.department_id ??
-    details?.department_id ??
-    details?.departmentId ??
-    null,
+          setDoctorDetails({
+            ...doctor,
+            ...(normalizedDetails ||
+              {}),
 
-  department_name:
-    details?.department_name ||
-    details?.departmentName ||
-    doctor.department_name ||
-    "",
+            department_id:
+              doctor.department_id ??
+              normalizedDetails?.department_id ??
+              details?.departmentId ??
+              null,
 
-  workingDays: finalWorkingDays,
-  working_days: finalWorkingDays,
-});
+            department_name:
+              normalizedDetails?.department_name ||
+              details?.departmentName ||
+              doctor.department_name ||
+              "",
 
+            workingDays:
+              finalWorkingDays,
 
+            working_days:
+              finalWorkingDays,
+          });
         } catch (error) {
           console.error(
             "GET CLINIC DOCTOR DETAILS ERROR:",
-            error
+            error?.response?.data ||
+              error
           );
 
-          if (!cancelled) {
+          if (
+            !cancelled
+          ) {
             setDoctorDetails(
               doctor
             );
           }
         } finally {
-          if (!cancelled) {
+          if (
+            !cancelled
+          ) {
             setDetailsLoading(
               false
             );
@@ -1133,8 +1520,18 @@ setDoctorDetails({
   ======================================================= */
 
   const handleBook = () => {
+    if (
+      !doctorAvailable
+    ) {
+      return;
+    }
+
     navigate(
-      `/booking?doctor=${doctor.id}&dept=${department.id}`
+      `/booking?doctor=${encodeURIComponent(
+        doctor.id
+      )}&dept=${encodeURIComponent(
+        department.id
+      )}`
     );
   };
 
@@ -1157,12 +1554,15 @@ setDoctorDetails({
         hover:shadow-[0_18px_42px_rgba(25,119,134,0.14)]
       "
     >
+
       <div
         dir="rtl"
         className="flex h-full flex-col"
       >
 
-        {/* MAIN CONTENT */}
+        {/* =================================================
+            MAIN CONTENT
+        ================================================= */}
 
         <div
           className="
@@ -1193,6 +1593,7 @@ setDoctorDetails({
               shadow-[0_8px_24px_rgba(25,119,134,0.14)]
             "
           >
+
             <div
               className="
                 w-full
@@ -1203,6 +1604,7 @@ setDoctorDetails({
                 overflow-hidden
               "
             >
+
               <PlaceholderImage
                 type="doctor"
                 src={
@@ -1224,7 +1626,9 @@ setDoctorDetails({
                 rounded="rounded-full"
                 objectFit="object-cover"
               />
+
             </div>
+
           </div>
 
           {/* DETAILS */}
@@ -1247,6 +1651,7 @@ setDoctorDetails({
 
             {(doctorDetails?.specialty ||
               doctor.specialty) && (
+
               <p
                 className="
                   text-[#197786]
@@ -1259,10 +1664,12 @@ setDoctorDetails({
                 {doctorDetails?.specialty ||
                   doctor.specialty}
               </p>
+
             )}
 
             {(doctorDetails?.qualification ||
               doctor.qualification) && (
+
               <div className="mt-2 mb-3">
 
                 <div
@@ -1274,6 +1681,7 @@ setDoctorDetails({
                     gap-2
                   "
                 >
+
                   <div
                     className="
                       w-8
@@ -1303,11 +1711,14 @@ setDoctorDetails({
                   </p>
 
                 </div>
+
               </div>
+
             )}
 
             {(doctorDetails?.bio ||
               doctor.bio) && (
+
               <p
                 className="
                   text-[#6D686A]
@@ -1319,14 +1730,16 @@ setDoctorDetails({
                 {doctorDetails?.bio ||
                   doctor.bio}
               </p>
+
             )}
 
           </div>
+
         </div>
 
-        {/* =============================================
-            WORKING DAYS - فوق الخط
-        ============================================== */}
+        {/* =================================================
+            WORKING DAYS
+        ================================================= */}
 
         <div
           className="
@@ -1337,6 +1750,7 @@ setDoctorDetails({
             gap-2
           "
         >
+
           <span
             className="
               text-[#197786]
@@ -1348,12 +1762,19 @@ setDoctorDetails({
           </span>
 
           {detailsLoading ? (
+
             <span className="text-sm font-bold text-slate-400">
               جاري تحميل أيام العمل...
             </span>
-          ) : workingDays.length > 0 ? (
+
+          ) : workingDays.length >
+            0 ? (
+
             workingDays.map(
-              (day, index) => (
+              (
+                day,
+                index
+              ) => (
                 <span
                   key={`${day}-${index}`}
                   className="
@@ -1370,20 +1791,26 @@ setDoctorDetails({
                     font-extrabold
                   "
                 >
-                  {day}
+                  {
+                    day
+                  }
                 </span>
               )
             )
+
           ) : (
+
             <span className="text-sm font-bold text-slate-400">
               لم يتم تحديد أيام العمل
             </span>
+
           )}
+
         </div>
 
-        {/* =============================================
-            الخط + الحالة
-        ============================================== */}
+        {/* =================================================
+            STATUS
+        ================================================= */}
 
         <div
           className="
@@ -1393,6 +1820,7 @@ setDoctorDetails({
             border-[#E7E3E3]
           "
         >
+
           <div
             className="
               flex
@@ -1401,6 +1829,7 @@ setDoctorDetails({
               gap-2
             "
           >
+
             <span
               className="
                 text-[#2F3437]
@@ -1421,6 +1850,7 @@ setDoctorDetails({
                 py-1.5
                 text-sm
                 font-extrabold
+
                 ${
                   doctorAvailable
                     ? "bg-emerald-50 text-emerald-700"
@@ -1428,11 +1858,13 @@ setDoctorDetails({
                 }
               `}
             >
+
               <span
                 className={`
                   h-2
                   w-2
                   rounded-full
+
                   ${
                     doctorAvailable
                       ? "bg-emerald-500"
@@ -1444,14 +1876,20 @@ setDoctorDetails({
               {getStatusLabel(
                 currentStatus
               )}
+
             </span>
+
           </div>
+
         </div>
 
-        {/* BOOK BUTTON */}
+        {/* =================================================
+            BOOK BUTTON
+        ================================================= */}
 
         {showBookButton &&
           doctor.id && (
+
             <button
               type="button"
               onClick={
@@ -1475,6 +1913,7 @@ setDoctorDetails({
                 font-extrabold
                 transition-all
                 duration-300
+
                 ${
                   doctorAvailable
                     ? `
@@ -1493,15 +1932,19 @@ setDoctorDetails({
                 }
               `}
             >
+
               <CalendarPlus className="w-4 h-4" />
 
               {doctorAvailable
                 ? "احجز الآن"
                 : "غير متاح للحجز"}
+
             </button>
+
           )}
 
       </div>
+
     </div>
   );
 }

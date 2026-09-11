@@ -8,8 +8,13 @@ import {
   Search,
 } from "lucide-react";
 
-const STORAGE_KEY =
-  "road_hospital_complaints";
+import {
+  getContactMessages,
+} from "@/services/contact";
+
+/* ======================================================
+   NORMALIZE SEARCH TEXT
+====================================================== */
 
 const normalizeText = (
   value
@@ -25,7 +30,14 @@ const normalizeText = (
       /[\s\u200C-]/g,
       " "
     )
-    .replace(/\s+/g, " ");
+    .replace(
+      /\s+/g,
+      " "
+    );
+
+/* ======================================================
+   COMPLAINTS ADMIN
+====================================================== */
 
 export default function ComplaintsAdmin() {
   const [
@@ -38,36 +50,75 @@ export default function ComplaintsAdmin() {
     setSearch,
   ] = useState("");
 
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
   /* ======================================================
-     LOAD ITEMS
+     LOAD FROM BACKEND
+
+     GET /api/PatientFeedbacks
   ====================================================== */
 
-  const loadItems = () => {
-    try {
-      const raw =
-        window.localStorage.getItem(
-          STORAGE_KEY
+  const loadItems =
+    async () => {
+      try {
+        setLoading(
+          true
         );
 
-      const parsed =
-        raw
-          ? JSON.parse(raw)
-          : [];
+        setError(
+          ""
+        );
 
-      setItems(
-        Array.isArray(parsed)
-          ? parsed
-          : []
-      );
-    } catch (error) {
-      console.error(
-        "READ COMPLAINTS ERROR:",
-        error
-      );
+        const data =
+          await getContactMessages();
 
-      setItems([]);
-    }
-  };
+        console.log(
+          "PATIENT FEEDBACKS ADMIN:",
+          data
+        );
+
+        setItems(
+          Array.isArray(
+            data
+          )
+            ? data
+            : []
+        );
+      } catch (error) {
+        console.error(
+          "LOAD PATIENT FEEDBACKS ERROR:",
+          error?.response?.data ||
+            error
+        );
+
+        setItems([]);
+
+        if (
+          error?.response?.status ===
+          401
+        ) {
+          setError(
+            "غير مصرح بعرض الشكاوى والمقترحات. برجاء تسجيل الدخول مرة أخرى."
+          );
+        } else {
+          setError(
+            "حدث خطأ أثناء تحميل الشكاوى والمقترحات."
+          );
+        }
+      } finally {
+        setLoading(
+          false
+        );
+      }
+    };
 
   useEffect(() => {
     loadItems();
@@ -89,17 +140,21 @@ export default function ComplaintsAdmin() {
       }
 
       return items.filter(
-        (item) => {
+        (
+          item
+        ) => {
           const matchesName =
             normalizeText(
-              item.name || ""
+              item.name ||
+                ""
             ).includes(
               value
             );
 
           const matchesMessage =
             normalizeText(
-              item.message || ""
+              item.message ||
+                ""
             ).includes(
               value
             );
@@ -116,6 +171,65 @@ export default function ComplaintsAdmin() {
     ]);
 
   /* ======================================================
+     LOADING
+  ====================================================== */
+
+  if (loading) {
+    return (
+      <div
+        className="
+          space-y-6
+          p-4
+          md:p-6
+        "
+        dir="rtl"
+      >
+
+        <div className="relative w-full max-w-md">
+
+          <div
+            className="
+              h-12
+              rounded-xl
+              shimmer-bg
+            "
+          />
+
+        </div>
+
+        <div className="card overflow-hidden">
+
+          <div className="space-y-2 p-4">
+
+            {Array.from({
+              length: 5,
+            }).map(
+              (
+                _,
+                index
+              ) => (
+                <div
+                  key={
+                    index
+                  }
+                  className="
+                    h-16
+                    rounded-xl
+                    shimmer-bg
+                  "
+                />
+              )
+            )}
+
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  /* ======================================================
      UI
   ====================================================== */
 
@@ -129,9 +243,20 @@ export default function ComplaintsAdmin() {
       dir="rtl"
     >
 
-      {/* SEARCH */}
+      {/* =================================================
+          SEARCH
+      ================================================= */}
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div
+        className="
+          flex
+          flex-col
+          gap-4
+          md:flex-row
+          md:items-center
+          md:justify-between
+        "
+      >
 
         <div className="relative w-full max-w-md">
 
@@ -180,7 +305,31 @@ export default function ComplaintsAdmin() {
 
       </div>
 
-      {/* TABLE */}
+      {/* =================================================
+          ERROR
+      ================================================= */}
+
+      {error && (
+        <div
+          className="
+            rounded-xl
+            border
+            border-red-200
+            bg-red-50
+            px-4
+            py-3
+            text-sm
+            font-bold
+            text-red-700
+          "
+        >
+          {error}
+        </div>
+      )}
+
+      {/* =================================================
+          TABLE
+      ================================================= */}
 
       <div className="card overflow-hidden">
 
@@ -190,13 +339,32 @@ export default function ComplaintsAdmin() {
 
             <thead className="bg-slate-50">
 
-              <tr className="border-b border-[#E7E3E3] text-sm text-slate-700">
+              <tr
+                className="
+                  border-b
+                  border-[#E7E3E3]
+                  text-sm
+                  text-slate-700
+                "
+              >
 
-                <th className="px-4 py-3 font-bold">
+                <th
+                  className="
+                    px-4
+                    py-3
+                    font-bold
+                  "
+                >
                   الاسم
                 </th>
 
-                <th className="px-4 py-3 font-bold">
+                <th
+                  className="
+                    px-4
+                    py-3
+                    font-bold
+                  "
+                >
                   الرسالة
                 </th>
 
@@ -220,7 +388,11 @@ export default function ComplaintsAdmin() {
                       text-slate-500
                     "
                   >
-                    لا توجد رسائل
+                    {error
+                      ? "تعذر تحميل الرسائل"
+                      : search
+                      ? "لا توجد نتائج مطابقة"
+                      : "لا توجد رسائل"}
                   </td>
 
                 </tr>
@@ -228,27 +400,58 @@ export default function ComplaintsAdmin() {
               ) : (
 
                 filtered.map(
-                  (item) => (
+                  (
+                    item,
+                    index
+                  ) => (
 
                     <tr
                       key={
-                        item.id
+                        item.id ??
+                        index
                       }
                       className="
                         border-b
                         border-[#E7E3E3]
                         align-top
+                        transition-colors
+                        hover:bg-slate-50
                       "
                     >
 
-                      <td className="px-4 py-4 text-sm font-bold text-slate-800">
-                        {item.name ||
-                          "-"}
+                      {/* NAME */}
+
+                      <td
+                        className="
+                          px-4
+                          py-4
+                          text-sm
+                          font-bold
+                          text-slate-800
+                        "
+                      >
+                        {
+                          item.name ||
+                          "-"
+                        }
                       </td>
 
-                      <td className="px-4 py-4 text-sm leading-7 text-slate-600">
-                        {item.message ||
-                          "-"}
+                      {/* MESSAGE */}
+
+                      <td
+                        className="
+                          px-4
+                          py-4
+                          text-sm
+                          leading-7
+                          text-slate-600
+                          whitespace-pre-wrap
+                        "
+                      >
+                        {
+                          item.message ||
+                          "-"
+                        }
                       </td>
 
                     </tr>

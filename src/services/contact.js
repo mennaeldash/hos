@@ -3,8 +3,8 @@ import api from "./api";
 const CONTACT_INFO_ENDPOINT =
   "/api/ContactInfo";
 
-const COMPLAINTS_STORAGE_KEY =
-  "road_hospital_complaints";
+const PATIENT_FEEDBACK_ENDPOINT =
+  "/api/PatientFeedbacks";
 
 /* ======================================================
    NORMALIZE CONTACT INFO
@@ -75,7 +75,7 @@ function normalizeContactInfo(data) {
 }
 
 /* ======================================================
-   BUILD PAYLOAD
+   CONTACT PAYLOAD
 ====================================================== */
 
 function buildContactPayload(data) {
@@ -144,10 +144,6 @@ export async function getContactInfo() {
       response.data
     );
 
-    /*
-      لو Backend رجع Array
-    */
-
     if (
       Array.isArray(
         response.data
@@ -162,10 +158,6 @@ export async function getContactInfo() {
           )
         : null;
     }
-
-    /*
-      لو Backend رجع Object مباشر
-    */
 
     return normalizeContactInfo(
       response.data
@@ -196,26 +188,11 @@ export async function createContactInfo(
         data
       );
 
-    console.log(
-      "CREATE CONTACT INFO PAYLOAD:",
-      payload
-    );
-
     const response =
       await api.post(
         CONTACT_INFO_ENDPOINT,
         payload
       );
-
-    console.log(
-      "CREATE CONTACT INFO RESPONSE:",
-      response.data
-    );
-
-    /*
-      بعض الـEndpoints ممكن ترجع 204
-      لذلك لو مفيش body نرجع null.
-    */
 
     return response.data
       ? normalizeContactInfo(
@@ -259,24 +236,11 @@ export async function updateContactInfo(
         data
       );
 
-    console.log(
-      "UPDATE CONTACT INFO PAYLOAD:",
-      {
-        id,
-        ...payload,
-      }
-    );
-
     const response =
       await api.put(
         `${CONTACT_INFO_ENDPOINT}/${id}`,
         payload
       );
-
-    console.log(
-      "UPDATE CONTACT INFO RESPONSE:",
-      response.data
-    );
 
     return response.data
       ? normalizeContactInfo(
@@ -319,11 +283,6 @@ export async function deleteContactInfo(
         `${CONTACT_INFO_ENDPOINT}/${id}`
       );
 
-    console.log(
-      "DELETE CONTACT INFO RESPONSE:",
-      response.data
-    );
-
     return response.data;
   } catch (error) {
     console.error(
@@ -337,45 +296,206 @@ export async function deleteContactInfo(
 }
 
 /* ======================================================
-   CONTACT MESSAGES
+   NORMALIZE PATIENT FEEDBACK
+====================================================== */
 
-   بنسيبها كما هي لأن hooks.js
-   بيستخدم getContactMessages.
+function normalizePatientFeedback(data) {
+  if (!data) {
+    return null;
+  }
 
-   الشكاوى والمقترحات حالياً
-   محفوظة في localStorage.
+  return {
+    ...data,
+
+    id:
+      data.id ??
+      data.Id ??
+      null,
+
+    name:
+      data.name ??
+      data.Name ??
+      "",
+
+    message:
+      data.message ??
+      data.Message ??
+      "",
+
+    createdAt:
+      data.createdAt ??
+      data.CreatedAt ??
+      data.created_at ??
+      null,
+  };
+}
+
+/* ======================================================
+   BUILD FEEDBACK PAYLOAD
+====================================================== */
+
+function buildFeedbackPayload(data) {
+  return {
+    name:
+      String(
+        data?.name ??
+          data?.Name ??
+          ""
+      ).trim(),
+
+    message:
+      String(
+        data?.message ??
+          data?.Message ??
+          ""
+      ).trim(),
+  };
+}
+
+/* ======================================================
+   SEND FEEDBACK
+
+   POST /api/PatientFeedbacks
+====================================================== */
+
+export async function createPatientFeedback(
+  data
+) {
+  try {
+    const payload =
+      buildFeedbackPayload(
+        data
+      );
+
+    console.log(
+      "PATIENT FEEDBACK PAYLOAD:",
+      payload
+    );
+
+    const response =
+      await api.post(
+        PATIENT_FEEDBACK_ENDPOINT,
+        payload
+      );
+
+    console.log(
+      "PATIENT FEEDBACK RESPONSE:",
+      response.data
+    );
+
+    const result =
+      response.data?.data ??
+      response.data;
+
+    return result
+      ? normalizePatientFeedback(
+          result
+        )
+      : null;
+  } catch (error) {
+    console.error(
+      "CREATE PATIENT FEEDBACK ERROR:",
+      error?.response?.data ||
+        error
+    );
+
+    throw error;
+  }
+}
+
+/* ======================================================
+   GET ALL FEEDBACKS
+
+   GET /api/PatientFeedbacks
+
+   ده Endpoint محمي للأدمن.
+   api.js هيضيف Bearer token تلقائياً.
 ====================================================== */
 
 export async function getContactMessages() {
+  try {
+    const response =
+      await api.get(
+        PATIENT_FEEDBACK_ENDPOINT
+      );
+
+    console.log(
+      "GET PATIENT FEEDBACKS RESPONSE:",
+      response.data
+    );
+
+    const result =
+      response.data?.data ??
+      response.data;
+
+    if (
+      !Array.isArray(result)
+    ) {
+      return [];
+    }
+
+    return result
+      .map(
+        normalizePatientFeedback
+      )
+      .filter(Boolean);
+  } catch (error) {
+    console.error(
+      "GET PATIENT FEEDBACKS ERROR:",
+      error?.response?.data ||
+        error
+    );
+
+    throw error;
+  }
+}
+
+/* ======================================================
+   GET FEEDBACK BY ID
+
+   GET /api/PatientFeedbacks/{id}
+====================================================== */
+
+export async function getPatientFeedbackById(
+  id
+) {
   if (
-    typeof window ===
-    "undefined"
+    id === null ||
+    id === undefined ||
+    id === ""
   ) {
-    return [];
+    throw new Error(
+      "Patient feedback id is required"
+    );
   }
 
   try {
-    const raw =
-      window.localStorage.getItem(
-        COMPLAINTS_STORAGE_KEY
+    const response =
+      await api.get(
+        `${PATIENT_FEEDBACK_ENDPOINT}/${id}`
       );
 
-    const parsed =
-      raw
-        ? JSON.parse(raw)
-        : [];
+    const result =
+      response.data?.data ??
+      response.data;
 
-    return Array.isArray(
-      parsed
-    )
-      ? parsed
-      : [];
+    return normalizePatientFeedback(
+      result
+    );
   } catch (error) {
     console.error(
-      "GET CONTACT MESSAGES ERROR:",
-      error
+      "GET PATIENT FEEDBACK ERROR:",
+      error?.response?.data ||
+        error
     );
 
-    return [];
+    throw error;
   }
 }
+
+/* ======================================================
+   ALIAS
+====================================================== */
+
+export const getPatientFeedbacks =
+  getContactMessages;

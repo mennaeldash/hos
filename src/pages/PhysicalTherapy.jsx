@@ -1,10 +1,35 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { CalendarPlus, GraduationCap } from "lucide-react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  useNavigate,
+} from "react-router-dom";
+
+import {
+  CalendarPlus,
+} from "lucide-react";
 
 import Reveal from "@/components/Reveal";
 import SectionHeading from "@/components/SectionHeading";
 import PlaceholderImage from "@/components/PlaceholderImage";
+
+import {
+  getAllDoctors,
+} from "@/services/doctors";
+
+/* =========================================================
+   CONSTANTS
+========================================================= */
+
+const BACKEND_ORIGIN =
+  import.meta.env.VITE_BACKEND_ORIGIN ||
+  "http://rewaddashboard.runasp.net";
+
+const PHYSICAL_THERAPY_NAME =
+  "العلاج الطبيعي";
 
 const dayLabels = {
   saturday: "السبت",
@@ -16,146 +41,908 @@ const dayLabels = {
   friday: "الجمعة",
 };
 
-const physicalTherapyDoctors = [
-  {
-    id: "physical-therapy-1",
-    name: "د/ حسام عادل الهاين",
-    specialty:
-      "أخصائي العلاج الطبيعي لأمراض العظام والعضلات والمفاصل والعمود الفقري",
-    qualification: "ماجستير العلاج الطبيعي",
-    bio: "أخصائي العلاج الطبيعي بمستشفى 1 أكتوبر العسكري سابقاً",
-    image_url: "",
-    department_id: "physical-therapy",
-    working_days: ["saturday", "wednesday"],
-  },
-];
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const normalizeText = (
+  value
+) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ");
+
+/* =========================================================
+   IMAGE URL
+========================================================= */
+
+const getDoctorImageUrl = (
+  imageUrl
+) => {
+  if (!imageUrl) {
+    return "";
+  }
+
+  const value =
+    String(
+      imageUrl
+    ).trim();
+
+  if (
+    value.startsWith(
+      "http://"
+    ) ||
+    value.startsWith(
+      "https://"
+    ) ||
+    value.startsWith(
+      "blob:"
+    ) ||
+    value.startsWith(
+      "data:"
+    )
+  ) {
+    return value;
+  }
+
+  return `${BACKEND_ORIGIN}${
+    value.startsWith("/")
+      ? value
+      : `/${value}`
+  }`;
+};
+
+/* =========================================================
+   WORKING DAYS
+========================================================= */
+
+const normalizeWorkingDays = (
+  doctor
+) => {
+  const rawDays =
+    doctor?.workingDays ??
+    doctor?.WorkingDays ??
+    doctor?.working_days ??
+    doctor?.days ??
+    doctor?.Days ??
+    [];
+
+  if (
+    Array.isArray(rawDays)
+  ) {
+    return rawDays;
+  }
+
+  if (
+    typeof rawDays ===
+    "string"
+  ) {
+    return rawDays
+      .split(/[,;|]+/)
+      .map(
+        (
+          day
+        ) =>
+          day.trim()
+      )
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const getArabicDay = (
+  day
+) => {
+  const value =
+    String(
+      day ?? ""
+    )
+      .trim()
+      .toLowerCase();
+
+  /*
+    لو الـBackend رجع أرقام
+  */
+
+  const numericDays = {
+    0: "الأحد",
+    1: "الإثنين",
+    2: "الثلاثاء",
+    3: "الأربعاء",
+    4: "الخميس",
+    5: "الجمعة",
+    6: "السبت",
+  };
+
+  if (
+    Object.prototype.hasOwnProperty.call(
+      numericDays,
+      value
+    )
+  ) {
+    return numericDays[
+      value
+    ];
+  }
+
+  return (
+    dayLabels[value] ||
+    day
+  );
+};
+
+/* =========================================================
+   STATUS
+========================================================= */
+
+const isDoctorActive = (
+  doctor
+) => {
+  const status =
+    doctor?.status ??
+    doctor?.Status ??
+    "";
+
+  /*
+    Backend الحالي:
+    Active
+    Unavailable
+  */
+
+  const normalized =
+    String(status)
+      .trim()
+      .toLowerCase();
+
+  if (
+    normalized ===
+      "unavailable" ||
+    normalized ===
+      "inactive" ||
+    normalized ===
+      "1"
+  ) {
+    return false;
+  }
+
+  return true;
+};
+
+/* =========================================================
+   PHYSICAL THERAPY PAGE
+========================================================= */
 
 export default function PhysicalTherapy() {
-  const doctors = useMemo(() => physicalTherapyDoctors, []);
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
+
+  const [
+    allDoctors,
+    setAllDoctors,
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  /* =======================================================
+     LOAD DOCTORS
+  ======================================================= */
+
+  useEffect(() => {
+    let cancelled =
+      false;
+
+    const loadDoctors =
+      async () => {
+        try {
+          setLoading(
+            true
+          );
+
+          setError(
+            ""
+          );
+
+          const response =
+            await getAllDoctors();
+
+          if (
+            cancelled
+          ) {
+            return;
+          }
+
+          setAllDoctors(
+            Array.isArray(
+              response
+            )
+              ? response
+              : []
+          );
+        } catch (error) {
+          console.error(
+            "PHYSICAL THERAPY DOCTORS ERROR:",
+            error?.response?.data ||
+              error
+          );
+
+          if (
+            !cancelled
+          ) {
+            setAllDoctors(
+              []
+            );
+
+            setError(
+              "تعذر تحميل أطباء العلاج الطبيعي حالياً."
+            );
+          }
+        } finally {
+          if (
+            !cancelled
+          ) {
+            setLoading(
+              false
+            );
+          }
+        }
+      };
+
+    loadDoctors();
+
+    return () => {
+      cancelled =
+        true;
+    };
+  }, []);
+
+  /* =======================================================
+     FILTER PHYSICAL THERAPY DOCTORS
+  ======================================================= */
+
+  const doctors =
+    useMemo(() => {
+      const targetName =
+        normalizeText(
+          PHYSICAL_THERAPY_NAME
+        );
+
+      return allDoctors.filter(
+        (
+          doctor
+        ) => {
+          const departmentName =
+            doctor?.departmentName ??
+            doctor?.department_name ??
+            doctor?.DepartmentName ??
+            doctor?.department?.name ??
+            doctor?.department?.Name ??
+            "";
+
+          return (
+            normalizeText(
+              departmentName
+            ) ===
+            targetName
+          );
+        }
+      );
+    }, [
+      allDoctors,
+    ]);
+
+  /* =======================================================
+     BOOKING
+  ======================================================= */
+
+  const handleBooking = (
+    doctor
+  ) => {
+    if (
+      !isDoctorActive(
+        doctor
+      )
+    ) {
+      return;
+    }
+
+    const doctorId =
+      doctor?.id ??
+      doctor?.Id ??
+      "";
+
+    const departmentId =
+      doctor?.departmentId ??
+      doctor?.department_id ??
+      doctor?.DepartmentId ??
+      "";
+
+    if (
+      !doctorId ||
+      !departmentId
+    ) {
+      console.error(
+        "BOOKING DATA MISSING:",
+        {
+          doctorId,
+          departmentId,
+        }
+      );
+
+      return;
+    }
+
+    navigate(
+      `/booking?doctor=${encodeURIComponent(
+        doctorId
+      )}&dept=${encodeURIComponent(
+        departmentId
+      )}`
+    );
+  };
+
+  /* =======================================================
+     RETURN
+  ======================================================= */
 
   return (
     <div className="pt-24">
+
+      {/* =====================================================
+          HERO
+      ===================================================== */}
+
       <section className="relative py-20 overflow-hidden">
+
         <div className="absolute inset-0">
+
           <img
             src="https://images.pexels.com/photos/3825584/pexels-photo-3825584.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt=""
             className="w-full h-full object-cover"
           />
+
           <div className="absolute inset-0 hero-overlay" />
+
         </div>
 
         <div className="container-custom relative z-10 text-center">
+
           <Reveal>
-            <span className="inline-block px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md text-white text-lg font-bold mb-4 border border-white/20">
+
+            <span
+              className="
+                inline-block
+                px-4
+                py-1.5
+                rounded-full
+                bg-white/10
+                backdrop-blur-md
+                text-white
+                text-lg
+                font-bold
+                mb-4
+                border
+                border-white/20
+              "
+            >
               العلاج الطبيعي
             </span>
-            <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+
+            <h1
+              className="
+                text-4xl
+                md:text-5xl
+                font-extrabold
+                text-white
+                mb-4
+              "
+            >
               قسم العلاج الطبيعي
             </h1>
-            <p className="text-xl text-slate-200 max-w-2xl mx-auto">
+
+            <p
+              className="
+                text-xl
+                text-slate-200
+                max-w-2xl
+                mx-auto
+              "
+            >
               رعاية متخصصة لاستعادة الحركة وتحسين الوظائف الجسدية بأحدث أساليب
               العلاج الطبيعي والتأهيل.
             </p>
+
           </Reveal>
+
         </div>
+
       </section>
 
+      {/* =====================================================
+          DOCTORS
+      ===================================================== */}
+
       <section className="section-padding bg-[#F8FAFB]">
+
         <div className="container-custom">
+
           <Reveal>
+
             <SectionHeading
               badge="الأطباء"
               title="أطباء العلاج الطبيعي"
               subtitle="تعرف على فريق العلاج الطبيعي بالمستشفى"
             />
+
           </Reveal>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {doctors.map((doctor, idx) => (
-              <Reveal key={doctor.id} delay={idx * 80} className="h-full">
-                <div className="group h-full w-full overflow-hidden rounded-[24px] border border-[#E7E3E3] bg-white p-5 shadow-[0_8px_28px_rgba(47,52,55,0.06)] transition-all duration-500 hover:-translate-y-1 hover:border-[#83BDC4] hover:shadow-[0_16px_35px_rgba(25,119,134,0.11)]">
-                  <div dir="rtl" className="text-right">
-                    <div className="float-none sm:float-left w-[150px] h-[150px] sm:w-[200px] sm:h-[200px] mx-auto sm:mx-0 sm:mr-5 mb-4 rounded-full p-[3px] bg-gradient-to-br from-[#197786] to-[#83BDC4] shadow-[0_8px_22px_rgba(25,119,134,0.15)]">
-                      <div className="w-full h-full rounded-full bg-white p-[3px] overflow-hidden">
-                        <PlaceholderImage
-                          type="doctor"
-                          src={doctor.image_url}
-                          alt={doctor.name}
-                          className="w-full h-full object-cover object-center rounded-full transition-transform duration-700 group-hover:scale-[1.06]"
-                          rounded="rounded-full"
-                        />
-                      </div>
-                    </div>
+          {/* =================================================
+              LOADING
+          ================================================= */}
 
-                    <h3 className="text-xl lg:text-[22px] font-extrabold text-[#1E293B] leading-[1.5] mb-1">
-                      {doctor.name}
-                    </h3>
+          {loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                    {doctor.specialty && (
-                      <p className="text-[#197786] text-sm font-bold leading-6 mb-1">
-                        {doctor.specialty}
-                      </p>
-                    )}
+              {Array.from({
+                length: 2,
+              }).map(
+                (
+                  _,
+                  index
+                ) => (
+                  <div
+                    key={
+                      index
+                    }
+                    className="
+                      h-[330px]
+                      rounded-[24px]
+                      shimmer-bg
+                    "
+                  />
+                )
+              )}
 
-                    {doctor.qualification && (
-                      <div className="mb-2 mt-2">
-                        <div className="flex items-start gap-2">
-                          <div className="w-8 h-8 shrink-0 rounded-lg bg-[#D1F9FC]/60 flex items-center justify-center text-[#197786]">
-                            <GraduationCap className="w-4 h-4" />
-                          </div>
-                          <p className="text-[#5F6670] text-md leading-6 font-medium">
-                            {doctor.qualification}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+            </div>
+          )}
 
-                    {doctor.bio && (
-                      <p className="text-[#6D686A] text-md leading-6 mb-2">
-                        {doctor.bio}
-                      </p>
-                    )}
+          {/* =================================================
+              ERROR
+          ================================================= */}
 
-                    <div className="clear-both" />
+          {!loading &&
+            error && (
+              <div
+                className="
+                  rounded-2xl
+                  border
+                  border-red-200
+                  bg-red-50
+                  px-5
+                  py-6
+                  text-center
+                  font-bold
+                  text-red-700
+                "
+              >
+                {error}
+              </div>
+            )}
 
-                    {doctor.working_days?.length > 0 && (
-                      <div className="pt-3 mt-2 border-t border-[#E7E3E3] mb-3 flex flex-wrap items-center gap-1">
-                        <span className="text-md font-extrabold text-[#197786]">
-                          أيام العمل:
-                        </span>
+          {/* =================================================
+              EMPTY
+          ================================================= */}
 
-                        {doctor.working_days.map((day) => (
-                          <span
-                            key={day}
-                            className="px-2 py-1.5 rounded-lg bg-[#D1F9FC]/55 text-[#197786] text-[16px] font-bold"
+          {!loading &&
+            !error &&
+            doctors.length ===
+              0 && (
+              <div
+                className="
+                  rounded-[24px]
+                  border
+                  border-[#E7E3E3]
+                  bg-white
+                  px-6
+                  py-14
+                  text-center
+                  shadow-[0_8px_28px_rgba(47,52,55,0.05)]
+                "
+              >
+                <p className="text-slate-500 font-bold">
+                  لا يوجد أطباء علاج طبيعي متاحون للعرض حالياً.
+                </p>
+              </div>
+            )}
+
+          {/* =================================================
+              DOCTORS GRID
+          ================================================= */}
+
+          {!loading &&
+            !error &&
+            doctors.length >
+              0 && (
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {doctors.map(
+                  (
+                    doctor,
+                    idx
+                  ) => {
+                    const id =
+                      doctor?.id ??
+                      doctor?.Id ??
+                      idx;
+
+                    const name =
+                      doctor?.fullName ??
+                      doctor?.FullName ??
+                      doctor?.name ??
+                      "";
+
+                    const specialty =
+                      doctor?.specialization ??
+                      doctor?.Specialization ??
+                      doctor?.specialty ??
+                      "";
+
+                    const bio =
+                      doctor?.biography ??
+                      doctor?.Biography ??
+                      doctor?.bio ??
+                      "";
+
+                    const rawImage =
+                      doctor?.imageUrl ??
+                      doctor?.ImageUrl ??
+                      doctor?.image_url ??
+                      "";
+
+                    const imageUrl =
+                      getDoctorImageUrl(
+                        rawImage
+                      );
+
+                    const workingDays =
+                      normalizeWorkingDays(
+                        doctor
+                      );
+
+                    const active =
+                      isDoctorActive(
+                        doctor
+                      );
+
+                    const departmentId =
+                      doctor?.departmentId ??
+                      doctor?.department_id ??
+                      doctor?.DepartmentId ??
+                      "";
+
+                    const canBook =
+                      active &&
+                      Boolean(
+                        id
+                      ) &&
+                      Boolean(
+                        departmentId
+                      );
+
+                    return (
+                      <Reveal
+                        key={
+                          id
+                        }
+                        delay={
+                          idx *
+                          80
+                        }
+                        className="h-full"
+                      >
+
+                        <div
+                          className="
+                            group
+                            h-full
+                            w-full
+                            overflow-hidden
+                            rounded-[24px]
+                            border
+                            border-[#E7E3E3]
+                            bg-white
+                            p-5
+                            shadow-[0_8px_28px_rgba(47,52,55,0.06)]
+                            transition-all
+                            duration-500
+                            hover:-translate-y-1
+                            hover:border-[#83BDC4]
+                            hover:shadow-[0_16px_35px_rgba(25,119,134,0.11)]
+                          "
+                        >
+
+                          <div
+                            dir="rtl"
+                            className="text-right"
                           >
-                            {dayLabels[day] || day}
-                          </span>
-                        ))}
-                      </div>
-                    )}
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/booking?doctor=${doctor.id}&dept=${doctor.department_id || "physical-therapy"}`
-                        )
-                      }
-                      className="group/btn mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#953238] px-5 py-3 text-white text-sm font-extrabold shadow-[0_8px_20px_rgba(149,50,56,0.18)] transition-all duration-300 hover:bg-[#7C3439] hover:-translate-y-0.5"
-                    >
-                      <CalendarPlus className="w-4 h-4" />
-                      احجز الآن
-                    </button>
-                  </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
+                            {/* IMAGE */}
+
+                            <div
+                              className="
+                                float-none
+                                sm:float-left
+                                w-[150px]
+                                h-[150px]
+                                sm:w-[200px]
+                                sm:h-[200px]
+                                mx-auto
+                                sm:mx-0
+                                sm:mr-5
+                                mb-4
+                                rounded-full
+                                p-[3px]
+                                bg-gradient-to-br
+                                from-[#197786]
+                                to-[#83BDC4]
+                                shadow-[0_8px_22px_rgba(25,119,134,0.15)]
+                              "
+                            >
+
+                              <div
+                                className="
+                                  w-full
+                                  h-full
+                                  rounded-full
+                                  bg-white
+                                  p-[3px]
+                                  overflow-hidden
+                                "
+                              >
+
+                                <PlaceholderImage
+                                  type="doctor"
+                                  src={
+                                    imageUrl
+                                  }
+                                  alt={
+                                    name
+                                  }
+                                  className="
+                                    w-full
+                                    h-full
+                                    object-cover
+                                    object-center
+                                    rounded-full
+                                    transition-transform
+                                    duration-700
+                                    group-hover:scale-[1.06]
+                                  "
+                                  rounded="rounded-full"
+                                />
+
+                              </div>
+
+                            </div>
+
+                            {/* NAME */}
+
+                            <h3
+                              className="
+                                text-xl
+                                lg:text-[22px]
+                                font-extrabold
+                                text-[#1E293B]
+                                leading-[1.5]
+                                mb-1
+                              "
+                            >
+                              {name ||
+                                "اسم الطبيب"}
+                            </h3>
+
+                            {/* SPECIALIZATION */}
+
+                            {specialty && (
+                              <p
+                                className="
+                                  text-[#197786]
+                                  text-sm
+                                  font-bold
+                                  leading-6
+                                  mb-1
+                                "
+                              >
+                                {
+                                  specialty
+                                }
+                              </p>
+                            )}
+
+                            {/* BIOGRAPHY */}
+
+                            {bio && (
+                              <p
+                                className="
+                                  text-[#6D686A]
+                                  text-md
+                                  leading-6
+                                  mb-2
+                                  mt-2
+                                "
+                              >
+                                {
+                                  bio
+                                }
+                              </p>
+                            )}
+
+                            <div className="clear-both" />
+
+                            {/* WORKING DAYS */}
+
+                            {workingDays.length >
+                              0 && (
+                              <div
+                                className="
+                                  pt-3
+                                  mt-2
+                                  border-t
+                                  border-[#E7E3E3]
+                                  mb-3
+                                  flex
+                                  flex-wrap
+                                  items-center
+                                  gap-1
+                                "
+                              >
+
+                                <span
+                                  className="
+                                    text-md
+                                    font-extrabold
+                                    text-[#197786]
+                                  "
+                                >
+                                  أيام العمل:
+                                </span>
+
+                                {workingDays.map(
+                                  (
+                                    day,
+                                    dayIndex
+                                  ) => (
+                                    <span
+                                      key={`${day}-${dayIndex}`}
+                                      className="
+                                        px-2
+                                        py-1.5
+                                        rounded-lg
+                                        bg-[#D1F9FC]/55
+                                        text-[#197786]
+                                        text-[16px]
+                                        font-bold
+                                      "
+                                    >
+                                      {
+                                        getArabicDay(
+                                          day
+                                        )
+                                      }
+                                    </span>
+                                  )
+                                )}
+
+                              </div>
+                            )}
+
+                            {/* STATUS */}
+
+                            {!active && (
+                              <div className="mb-3">
+
+                                <span
+                                  className="
+                                    inline-flex
+                                    rounded-full
+                                    bg-slate-100
+                                    px-3
+                                    py-1.5
+                                    text-xs
+                                    font-bold
+                                    text-slate-500
+                                  "
+                                >
+                                  غير متاح حالياً
+                                </span>
+
+                              </div>
+                            )}
+
+                            {/* BOOKING */}
+
+                            <button
+                              type="button"
+                              disabled={
+                                !canBook
+                              }
+                              onClick={() =>
+                                handleBooking(
+                                  doctor
+                                )
+                              }
+                              className={`
+                                group/btn
+                                mt-3
+                                w-full
+                                inline-flex
+                                items-center
+                                justify-center
+                                gap-2
+                                rounded-xl
+                                px-5
+                                py-3
+                                text-sm
+                                font-extrabold
+                                transition-all
+                                duration-300
+
+                                ${
+                                  canBook
+                                    ? `
+                                      bg-[#953238]
+                                      text-white
+                                      shadow-[0_8px_20px_rgba(149,50,56,0.18)]
+                                      hover:bg-[#7C3439]
+                                      hover:-translate-y-0.5
+                                    `
+                                    : `
+                                      bg-slate-200
+                                      text-slate-500
+                                      cursor-not-allowed
+                                    `
+                                }
+                              `}
+                            >
+
+                              <CalendarPlus className="w-4 h-4" />
+
+                              {active
+                                ? "احجز الآن"
+                                : "غير متاح حالياً"}
+
+                            </button>
+
+                          </div>
+
+                        </div>
+
+                      </Reveal>
+                    );
+                  }
+                )}
+
+              </div>
+            )}
+
         </div>
+
       </section>
+
     </div>
   );
 }

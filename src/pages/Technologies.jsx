@@ -17,49 +17,143 @@ import PlaceholderImage from "@/components/PlaceholderImage";
 import { useEquipment } from "@/lib/hooks";
 
 /* =========================================================
-   CATEGORIES
+   SERVICE INFO
+
+   الـBackend لا يرجع category
+   لذلك نحدد شكل الأيقونة حسب اسم الخدمة.
 ========================================================= */
 
-const categoryInfo = {
-  icu: {
-    label: "العناية المركزة",
-    icon: Activity,
-  },
+const getServiceInfo = (
+  name
+) => {
+  const text =
+    String(
+      name || ""
+    )
+      .trim()
+      .toLowerCase();
 
-  "cardiac-care": {
-    label: "عناية القلب",
-    icon: HeartPulse,
-  },
+  /* VIP */
 
-  vip: {
-    label: "العناية المركزة VIP",
-    icon: Crown,
-  },
+  if (
+    text.includes("vip")
+  ) {
+    return {
+      label:
+        "العناية المركزة VIP",
+      icon: Crown,
+    };
+  }
 
-  nursery: {
-    label: "حديثي الولادة",
-    icon: Baby,
-  },
+  /* CARDIAC */
 
-  emergency: {
-    label: "الطوارئ",
-    icon: Siren,
-  },
+  if (
+    text.includes("قلب") ||
+    text.includes("قلبية") ||
+    text.includes("القسطرة")
+  ) {
+    return {
+      label:
+        "خدمات القلب",
+      icon: HeartPulse,
+    };
+  }
 
-  radiology: {
-    label: "الأشعة",
-    icon: Scan,
-  },
+  /* NURSERY */
 
-  clinics: {
-    label: "العيادات الخارجية",
-    icon: Stethoscope,
-  },
+  if (
+    text.includes("حضانة") ||
+    text.includes(
+      "حديثي الولادة"
+    ) ||
+    text.includes(
+      "حديثى الولادة"
+    )
+  ) {
+    return {
+      label:
+        "حديثي الولادة",
+      icon: Baby,
+    };
+  }
 
-  pharmacy: {
-    label: "الصيدلية",
-    icon: Pill,
-  },
+  /* EMERGENCY */
+
+  if (
+    text.includes("طوارئ") ||
+    text.includes("الطوارئ")
+  ) {
+    return {
+      label:
+        "الطوارئ",
+      icon: Siren,
+    };
+  }
+
+  /* RADIOLOGY */
+
+  if (
+    text.includes("أشعة") ||
+    text.includes("اشعة") ||
+    text.includes("الأشعة")
+  ) {
+    return {
+      label:
+        "الأشعة",
+      icon: Scan,
+    };
+  }
+
+  /* CLINICS */
+
+  if (
+    text.includes("عيادة") ||
+    text.includes("عيادات")
+  ) {
+    return {
+      label:
+        "العيادات الخارجية",
+      icon: Stethoscope,
+    };
+  }
+
+  /* PHARMACY */
+
+  if (
+    text.includes("صيدلية") ||
+    text.includes("الصيدلية")
+  ) {
+    return {
+      label:
+        "الصيدلية",
+      icon: Pill,
+    };
+  }
+
+  /* ICU */
+
+  if (
+    text.includes(
+      "عناية مركزة"
+    ) ||
+    text.includes(
+      "العناية المركزة"
+    )
+  ) {
+    return {
+      label:
+        "العناية المركزة",
+      icon: Activity,
+    };
+  }
+
+  return {
+    label:
+      "خدمات المستشفى",
+
+    icon:
+      Activity,
+  };
 };
 
 /* =========================================================
@@ -72,13 +166,17 @@ export default function Technologies() {
     loading,
   } = useEquipment();
 
-  const sortedEquipment = Array.isArray(equipment)
-    ? [...equipment].sort(
-        (a, b) =>
-          Number(a.sort_order || 0) -
-          Number(b.sort_order || 0)
-      )
-    : [];
+  /*
+    الـAPI لا يرجع sort_order
+    لذلك نحافظ على نفس ترتيب الـBackend.
+  */
+
+  const services =
+    Array.isArray(
+      equipment
+    )
+      ? equipment
+      : [];
 
   return (
     <div className="pt-20 md:pt-24 overflow-hidden">
@@ -134,100 +232,251 @@ export default function Technologies() {
           }
 
           .service-enter-right {
-            animation: serviceEnterRight 0.8s
-              cubic-bezier(0.22, 1, 0.36, 1)
+            animation:
+              serviceEnterRight
+              0.8s
+              cubic-bezier(
+                0.22,
+                1,
+                0.36,
+                1
+              )
               both;
           }
 
           .service-enter-left {
-            animation: serviceEnterLeft 0.8s
-              cubic-bezier(0.22, 1, 0.36, 1)
+            animation:
+              serviceEnterLeft
+              0.8s
+              cubic-bezier(
+                0.22,
+                1,
+                0.36,
+                1
+              )
               both;
           }
 
           .service-float {
-            animation: softFloat 3.5s
-              ease-in-out infinite;
+            animation:
+              softFloat
+              3.5s
+              ease-in-out
+              infinite;
           }
 
           .hero-soft-zoom {
-            animation: heroSoftZoom 8s
-              ease-in-out infinite alternate;
-            will-change: transform;
+            animation:
+              heroSoftZoom
+              8s
+              ease-in-out
+              infinite
+              alternate;
+
+            will-change:
+              transform;
           }
 
           .technologies-hero {
-            background: #176A77;
+            background:
+              #176A77;
           }
 
           .technologies-intro {
-            position: relative;
-            isolation: isolate;
+            position:
+              relative;
+
+            isolation:
+              isolate;
           }
 
           .technologies-intro::before {
             content: "";
-            position: absolute;
+
+            position:
+              absolute;
+
             inset: 0;
+
             z-index: -1;
+
             background:
-              radial-gradient(circle at 12% 24%, rgba(131,189,196,.14), transparent 26%),
-              radial-gradient(circle at 88% 76%, rgba(204,174,176,.10), transparent 24%);
-            pointer-events: none;
+              radial-gradient(
+                circle at 12% 24%,
+                rgba(
+                  131,
+                  189,
+                  196,
+                  .14
+                ),
+                transparent 26%
+              ),
+              radial-gradient(
+                circle at 88% 76%,
+                rgba(
+                  204,
+                  174,
+                  176,
+                  .10
+                ),
+                transparent 24%
+              );
+
+            pointer-events:
+              none;
           }
 
           .technologies-list {
-            position: relative;
-            isolation: isolate;
+            position:
+              relative;
+
+            isolation:
+              isolate;
+
             background:
-              linear-gradient(180deg, rgba(248,250,251,.98), rgba(250,246,246,.96));
+              linear-gradient(
+                180deg,
+                rgba(
+                  248,
+                  250,
+                  251,
+                  .98
+                ),
+                rgba(
+                  250,
+                  246,
+                  246,
+                  .96
+                )
+              );
           }
 
           .technologies-list::before {
             content: "";
-            position: absolute;
+
+            position:
+              absolute;
+
             inset: 0;
+
             z-index: -1;
+
             opacity: .38;
+
             background-image:
-              linear-gradient(rgba(25,119,134,.035) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(25,119,134,.035) 1px, transparent 1px);
-            background-size: 42px 42px;
-            mask-image: linear-gradient(to bottom, black, transparent 82%);
-            pointer-events: none;
+              linear-gradient(
+                rgba(
+                  25,
+                  119,
+                  134,
+                  .035
+                ) 1px,
+                transparent 1px
+              ),
+              linear-gradient(
+                90deg,
+                rgba(
+                  25,
+                  119,
+                  134,
+                  .035
+                ) 1px,
+                transparent 1px
+              );
+
+            background-size:
+              42px 42px;
+
+            mask-image:
+              linear-gradient(
+                to bottom,
+                black,
+                transparent 82%
+              );
+
+            pointer-events:
+              none;
           }
 
           .technology-card {
             box-shadow:
-              0 12px 34px rgba(47,52,55,.055),
-              0 2px 4px rgba(25,119,134,.035);
+              0 12px 34px
+                rgba(
+                  47,
+                  52,
+                  55,
+                  .055
+                ),
+              0 2px 4px
+                rgba(
+                  25,
+                  119,
+                  134,
+                  .035
+                );
           }
 
           .technology-card::after {
             content: "";
-            position: absolute;
-            inset: 10px;
-            border: 1px solid rgba(131,189,196,.16);
-            border-radius: 18px;
+
+            position:
+              absolute;
+
+            inset:
+              10px;
+
+            border:
+              1px solid
+              rgba(
+                131,
+                189,
+                196,
+                .16
+              );
+
+            border-radius:
+              18px;
+
             opacity: 0;
-            transform: scale(.985);
-            transition: opacity .5s ease, transform .6s cubic-bezier(.22,1,.36,1);
-            pointer-events: none;
+
+            transform:
+              scale(.985);
+
+            transition:
+              opacity .5s ease,
+              transform .6s
+                cubic-bezier(
+                  .22,
+                  1,
+                  .36,
+                  1
+                );
+
+            pointer-events:
+              none;
           }
 
           .technology-card:hover::after {
             opacity: 1;
-            transform: scale(1);
+
+            transform:
+              scale(1);
           }
 
-          @media (prefers-reduced-motion: reduce) {
+          @media (
+            prefers-reduced-motion:
+            reduce
+          ) {
             .service-enter-right,
             .service-enter-left,
             .service-float,
             .hero-soft-zoom,
             .technology-card::after {
-              animation: none !important;
-              transition: none !important;
+              animation:
+                none !important;
+
+              transition:
+                none !important;
             }
           }
         `}
@@ -247,7 +496,9 @@ export default function Technologies() {
           overflow-hidden
         "
       >
+
         <div className="absolute inset-0 overflow-hidden">
+
           <img
             src="https://images.pexels.com/photos/8413121/pexels-photo-8413121.jpeg?auto=compress&cs=tinysrgb&w=1920"
             alt="خدمات مستشفى رواد الطب"
@@ -269,6 +520,7 @@ export default function Technologies() {
               to-[#953238]/45
             "
           />
+
         </div>
 
         <div
@@ -280,7 +532,9 @@ export default function Technologies() {
             px-4
           "
         >
+
           <Reveal>
+
             <span
               className="
                 service-float
@@ -303,6 +557,7 @@ export default function Technologies() {
               "
             >
               <Sparkles className="w-4 h-4" />
+
               خدماتنا
             </span>
 
@@ -337,8 +592,11 @@ export default function Technologies() {
               بأحدث التجهيزات وتحت إشراف فرق طبية
               متخصصة لضمان رعاية آمنة ومتميزة.
             </p>
+
           </Reveal>
+
         </div>
+
       </section>
 
       {/* =====================================================
@@ -356,6 +614,7 @@ export default function Technologies() {
           bg-[#F8FAFB]
         "
       >
+
         <div
           className="
             container-custom
@@ -363,7 +622,9 @@ export default function Technologies() {
             px-4
           "
         >
+
           <Reveal>
+
             <span
               className="
                 inline-block
@@ -437,8 +698,11 @@ export default function Technologies() {
                 "
               />
             </div>
+
           </Reveal>
+
         </div>
+
       </section>
 
       {/* =====================================================
@@ -453,6 +717,7 @@ export default function Technologies() {
           md:pb-24
         "
       >
+
         <div
           className="
             w-full
@@ -468,56 +733,81 @@ export default function Technologies() {
           {/* LOADING */}
 
           {loading ? (
+
             <div className="space-y-6 md:space-y-8">
+
               {Array.from({
                 length: 4,
-              }).map((_, index) => (
-                <div
-                  key={index}
-                  className="
-                    w-full
-                    h-[330px]
-                    md:h-[400px]
-                    rounded-[24px]
-                    md:rounded-[28px]
-                    shimmer-bg
-                  "
-                />
-              ))}
+              }).map(
+                (
+                  _,
+                  index
+                ) => (
+                  <div
+                    key={
+                      index
+                    }
+                    className="
+                      w-full
+                      h-[330px]
+                      md:h-[400px]
+                      rounded-[24px]
+                      md:rounded-[28px]
+                      shimmer-bg
+                    "
+                  />
+                )
+              )}
+
             </div>
-          ) : sortedEquipment.length === 0 ? (
+
+          ) : services.length ===
+            0 ? (
 
             /* EMPTY */
 
             <div className="text-center py-20">
+
               <p className="text-slate-500 text-base sm:text-lg">
                 لا توجد خدمات متاحة حالياً
               </p>
+
             </div>
+
           ) : (
 
             /* SERVICES */
 
             <div className="space-y-6 md:space-y-8">
 
-              {sortedEquipment.map(
-                (item, index) => {
-                  const category =
-                    categoryInfo[item.category] || {
-                      label: "خدمات المستشفى",
-                      icon: Activity,
-                    };
+              {services.map(
+                (
+                  item,
+                  index
+                ) => {
+                  const serviceInfo =
+                    getServiceInfo(
+                      item.name
+                    );
 
-                  const Icon = category.icon;
+                  const Icon =
+                    serviceInfo.icon;
 
                   const imageOnRight =
-                    index % 2 === 0;
+                    index % 2 ===
+                    0;
 
                   return (
                     <Reveal
-                      key={item.id}
-                      delay={index * 70}
+                      key={
+                        item.id
+                      }
+                      delay={
+                        index *
+                        70
+                      }
                     >
+
                       <article
                         className={`
                           group
@@ -544,13 +834,15 @@ export default function Technologies() {
                           }
                         `}
                         style={{
-                          animationDelay: `${index * 90}ms`,
+                          animationDelay:
+                            `${
+                              index *
+                              90
+                            }ms`,
                         }}
                       >
 
-                        {/* ===================================
-                            ANIMATED TOP LINE
-                        =================================== */}
+                        {/* TOP LINE */}
 
                         <div
                           className="
@@ -571,8 +863,6 @@ export default function Technologies() {
                             group-hover:w-full
                           "
                         />
-
-                        {/* STATIC TOP LINE */}
 
                         <div
                           className="
@@ -595,9 +885,7 @@ export default function Technologies() {
                           "
                         >
 
-                          {/* =================================================
-                              IMAGE
-                          ================================================= */}
+                          {/* IMAGE */}
 
                           <div
                             className={`
@@ -614,10 +902,16 @@ export default function Technologies() {
                               }
                             `}
                           >
+
                             <PlaceholderImage
                               type="device"
-                              src={item.image_url}
-                              alt={item.name}
+                              src={
+                                item.image_url ||
+                                item.imageUrl
+                              }
+                              alt={
+                                item.name
+                              }
                               className="
                                 absolute
                                 inset-0
@@ -632,8 +926,6 @@ export default function Technologies() {
                               objectFit="object-cover"
                             />
 
-                            {/* IMAGE OVERLAY */}
-
                             <div
                               className="
                                 absolute
@@ -647,8 +939,6 @@ export default function Technologies() {
                                 group-hover:from-[#176A77]/30
                               "
                             />
-
-                            {/* LIGHT EFFECT */}
 
                             <div
                               className="
@@ -668,14 +958,9 @@ export default function Technologies() {
                               "
                             />
 
-                            {/* IMAGE CATEGORY BADGE */}
-
-        
                           </div>
 
-                          {/* =================================================
-                              CONTENT
-                          ================================================= */}
+                          {/* CONTENT */}
 
                           <div
                             className={`
@@ -689,6 +974,7 @@ export default function Technologies() {
                               }
                             `}
                           >
+
                             <div
                               dir="rtl"
                               className="
@@ -702,7 +988,7 @@ export default function Technologies() {
                               "
                             >
 
-                              {/* CATEGORY */}
+                              {/* SERVICE TYPE */}
 
                               <div
                                 className="
@@ -712,6 +998,7 @@ export default function Technologies() {
                                   mb-3
                                 "
                               >
+
                                 <div
                                   className="
                                     w-10
@@ -734,15 +1021,7 @@ export default function Technologies() {
                                     group-hover:text-white
                                   "
                                 >
-                                  <Icon
-                                    className="
-                                      w-5
-                                      h-5
-                                      transition-all
-                                      duration-500
-                                      group-hover:scale-110
-                                    "
-                                  />
+                                  <Icon className="w-5 h-5" />
                                 </div>
 
                                 <span
@@ -753,8 +1032,11 @@ export default function Technologies() {
                                     text-[#197786]
                                   "
                                 >
-                                  {category.label}
+                                  {
+                                    serviceInfo.label
+                                  }
                                 </span>
+
                               </div>
 
                               {/* NAME */}
@@ -773,12 +1055,15 @@ export default function Technologies() {
                                   group-hover:text-[#197786]
                                 "
                               >
-                                {item.name}
+                                {
+                                  item.name
+                                }
                               </h3>
 
                               {/* DESCRIPTION */}
 
                               {item.description && (
+
                                 <p
                                   className="
                                     text-[#6D686A]
@@ -792,19 +1077,17 @@ export default function Technologies() {
                                     line-clamp-5
                                   "
                                 >
-                                  {item.description}
+                                  {
+                                    item.description
+                                  }
                                 </p>
+
                               )}
 
                               {/* DETAILS */}
 
-                              <div
-                                className="
-                                  flex
-                                  flex-wrap
-                                  gap-2
-                                "
-                              >
+                              <div className="flex flex-wrap gap-2">
+
                                 <div
                                   className="
                                     inline-flex
@@ -819,12 +1102,10 @@ export default function Technologies() {
                                     text-[#7C3439]
                                     text-xs
                                     font-bold
-                                    transition-all
-                                    duration-300
-                                    group-hover:border-[#953238]/35
                                   "
                                 >
                                   <ShieldCheck className="w-3.5 h-3.5" />
+
                                   رعاية آمنة
                                 </div>
 
@@ -842,21 +1123,23 @@ export default function Technologies() {
                                     text-[#197786]
                                     text-xs
                                     font-bold
-                                    transition-all
-                                    duration-300
-                                    group-hover:bg-[#D1F9FC]
                                   "
                                 >
                                   <Cpu className="w-3.5 h-3.5" />
+
                                   تجهيزات حديثة
                                 </div>
+
                               </div>
 
                             </div>
+
                           </div>
 
                         </div>
+
                       </article>
+
                     </Reveal>
                   );
                 }
@@ -864,27 +1147,21 @@ export default function Technologies() {
 
             </div>
           )}
+
         </div>
+
       </section>
 
       {/* =====================================================
           BOTTOM CTA
       ===================================================== */}
 
-      <section
-        className="
-          py-14
-          md:py-20
-          bg-white
-        "
-      >
-        <div
-          className="
-            container-custom
-            px-4
-          "
-        >
+      <section className="py-14 md:py-20 bg-white">
+
+        <div className="container-custom px-4">
+
           <Reveal>
+
             <div
               className="
                 group
@@ -901,7 +1178,6 @@ export default function Technologies() {
                 text-center
               "
             >
-              {/* BACKGROUND */}
 
               <div
                 className="
@@ -913,8 +1189,6 @@ export default function Technologies() {
                 "
               />
 
-              {/* DECORATION 1 */}
-
               <div
                 className="
                   absolute
@@ -925,13 +1199,8 @@ export default function Technologies() {
                   rounded-full
                   bg-white/10
                   blur-2xl
-                  transition-transform
-                  duration-[1200ms]
-                  group-hover:scale-125
                 "
               />
-
-              {/* DECORATION 2 */}
 
               <div
                 className="
@@ -943,15 +1212,11 @@ export default function Technologies() {
                   rounded-full
                   bg-[#953238]/20
                   blur-2xl
-                  transition-transform
-                  duration-[1200ms]
-                  group-hover:scale-125
                 "
               />
 
-              {/* CONTENT */}
-
               <div className="relative z-10">
+
                 <div
                   className="
                     service-float
@@ -969,20 +1234,9 @@ export default function Technologies() {
                     flex
                     items-center
                     justify-center
-                    transition-all
-                    duration-500
-                    group-hover:bg-white/20
                   "
                 >
-                  <Stethoscope
-                    className="
-                      w-7
-                      h-7
-                      md:w-8
-                      md:h-8
-                      text-white
-                    "
-                  />
+                  <Stethoscope className="w-7 h-7 md:w-8 md:h-8 text-white" />
                 </div>
 
                 <h2
@@ -1010,15 +1264,20 @@ export default function Technologies() {
                     md:leading-8
                   "
                 >
-                  نحرص على تقديم خدمات طبية
-                  متكاملة بأحدث التجهيزات وتحت
-                  إشراف فرق طبية متخصصة لخدمة
-                  مرضانا بأعلى مستوى من الجودة.
+                  نحرص على تقديم خدمات طبية متكاملة
+                  بأحدث التجهيزات وتحت إشراف فرق طبية
+                  متخصصة لخدمة مرضانا بأعلى مستوى من
+                  الجودة.
                 </p>
+
               </div>
+
             </div>
+
           </Reveal>
+
         </div>
+
       </section>
 
     </div>
