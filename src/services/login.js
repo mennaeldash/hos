@@ -57,7 +57,8 @@ function getRoleFromToken(token) {
         .replace(/_/g, "/");
 
     /*
-      JWT Base64 URL أحيانًا بيكون ناقص padding
+      JWT Base64 URL
+      أحيانًا بيكون ناقص padding
     */
 
     while (
@@ -92,8 +93,9 @@ function getRoleFromToken(token) {
       );
 
     /*
-      ASP.NET Identity غالبًا بيحط الـRole
-      في الـclaim الطويل ده.
+      ASP.NET Identity
+      غالبًا بيحط الـ Role
+      في الـ claim الطويل ده.
     */
 
     const role =
@@ -130,7 +132,7 @@ function getRoleFromToken(token) {
    token
 
    FRONTEND:
-   بنستخرج الـRole من الـJWT
+   بنستخرج الـ Role من الـ JWT
 ========================================================= */
 
 export async function loginAdmin(
@@ -138,10 +140,14 @@ export async function loginAdmin(
   password
 ) {
   const normalizedEmail =
-    String(email || "").trim();
+    String(
+      email || ""
+    ).trim();
 
   const normalizedPassword =
-    String(password || "");
+    String(
+      password || ""
+    );
 
   /* =======================================================
      VALIDATION
@@ -187,8 +193,11 @@ export async function loginAdmin(
 
   /*
     احتياطي:
-    لو الباك رجّع Role مباشرة في المستقبل
-    ناخده، وإلا نقرأه من الـJWT.
+    لو الباك رجّع Role مباشرة
+    ناخده.
+
+    لو مش موجود،
+    نستخرجه من الـ JWT.
   */
 
   let role =
@@ -234,6 +243,7 @@ export async function loginAdmin(
    POST /api/auth/create-admin
 
    REQUEST:
+   fullName
    email
    password
    confirmPassword
@@ -243,12 +253,31 @@ export async function loginAdmin(
 export async function createAdmin(
   data
 ) {
+  /* =======================================================
+     FULL NAME
+  ======================================================= */
+
+  const fullName =
+    String(
+      data?.fullName ??
+        data?.FullName ??
+        ""
+    ).trim();
+
+  /* =======================================================
+     EMAIL
+  ======================================================= */
+
   const email =
     String(
       data?.email ??
         data?.Email ??
         ""
     ).trim();
+
+  /* =======================================================
+     PASSWORD
+  ======================================================= */
 
   const password =
     String(
@@ -257,12 +286,20 @@ export async function createAdmin(
         ""
     );
 
+  /* =======================================================
+     CONFIRM PASSWORD
+  ======================================================= */
+
   const confirmPassword =
     String(
       data?.confirmPassword ??
         data?.ConfirmPassword ??
         ""
     );
+
+  /* =======================================================
+     ROLE
+  ======================================================= */
 
   const role =
     normalizeRole(
@@ -273,6 +310,12 @@ export async function createAdmin(
   /* =======================================================
      VALIDATION
   ======================================================= */
+
+  if (!fullName) {
+    throw new Error(
+      "اسم الأدمن مطلوب"
+    );
+  }
 
   if (!email) {
     throw new Error(
@@ -308,27 +351,64 @@ export async function createAdmin(
   }
 
   /* =======================================================
+     PAYLOAD
+
+     Swagger:
+     {
+       fullName,
+       email,
+       password,
+       confirmPassword,
+       role
+     }
+  ======================================================= */
+
+  const payload = {
+    fullName,
+    email,
+    password,
+    confirmPassword,
+    role,
+  };
+
+  console.log(
+    "CREATE ADMIN PAYLOAD:",
+    {
+      fullName:
+        payload.fullName,
+
+      email:
+        payload.email,
+
+      role:
+        payload.role,
+    }
+  );
+
+  /* =======================================================
      REQUEST
   ======================================================= */
 
-  const response =
-    await api.post(
-      "/api/auth/create-admin",
-      {
-        email,
+  try {
+    const response =
+      await api.post(
+        "/api/auth/create-admin",
+        payload
+      );
 
-        password,
-
-        confirmPassword,
-
-        role,
-      }
+    console.log(
+      "CREATE ADMIN RESPONSE:",
+      response.data
     );
 
-  console.log(
-    "CREATE ADMIN RESPONSE:",
-    response.data
-  );
+    return response.data;
+  } catch (error) {
+    console.error(
+      "CREATE ADMIN ERROR:",
+      error?.response?.data ||
+        error
+    );
 
-  return response.data;
+    throw error;
+  }
 }

@@ -77,7 +77,9 @@ const getArabicDay = (value) => {
       dayId !== undefined &&
       DAY_LABELS[Number(dayId)]
     ) {
-      return DAY_LABELS[Number(dayId)];
+      return DAY_LABELS[
+        Number(dayId)
+      ];
     }
 
     const dayName =
@@ -122,7 +124,9 @@ const getArabicDay = (value) => {
   );
 };
 
-const normalizeDaysArray = (value) => {
+const normalizeDaysArray = (
+  value
+) => {
   if (
     value === null ||
     value === undefined ||
@@ -188,6 +192,74 @@ const getDoctorWorkingDays = (
 };
 
 /* =========================================================
+   DATE HELPERS
+========================================================= */
+
+const getTodayDateValue = () => {
+  const today =
+    new Date();
+
+  const year =
+    today.getFullYear();
+
+  const month =
+    String(
+      today.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      today.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+};
+
+const getDateDayName = (
+  dateValue
+) => {
+  if (!dateValue) {
+    return "";
+  }
+
+  const [
+    year,
+    month,
+    day,
+  ] =
+    dateValue
+      .split("-")
+      .map(Number);
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      year,
+      month - 1,
+      day
+    );
+
+  return (
+    DAY_LABELS[
+      date.getDay()
+    ] || ""
+  );
+};
+
+/* =========================================================
    DOCTOR STATUS
 ========================================================= */
 
@@ -223,12 +295,9 @@ const isDoctorAvailable = (
       .toLowerCase();
 
   return (
-    normalized ===
-      "active" ||
-    normalized ===
-      "نشط" ||
-    normalized ===
-      "متاح"
+    normalized === "active" ||
+    normalized === "نشط" ||
+    normalized === "متاح"
   );
 };
 
@@ -268,12 +337,12 @@ export default function BookingWizard({
       async () => {
         if (
           doctor?.id === null ||
-          doctor?.id === undefined ||
+          doctor?.id ===
+            undefined ||
           doctor?.id === ""
         ) {
           setDoctorDetails(
-            doctor ||
-              null
+            doctor || null
           );
 
           setDoctorLoading(
@@ -397,10 +466,8 @@ export default function BookingWizard({
   ] = useState({
     full_name: "",
     phone: "",
+    appointment_date: "",
     email: "",
-    gender: "",
-    age: "",
-    notes: "",
   });
 
   const [
@@ -417,6 +484,67 @@ export default function BookingWizard({
     error,
     setError,
   ] = useState(null);
+
+  /* =======================================================
+     DATE VALIDATION
+  ======================================================= */
+
+  const todayDate =
+    getTodayDateValue();
+
+  const selectedDayName =
+    useMemo(
+      () =>
+        getDateDayName(
+          form.appointment_date
+        ),
+      [
+        form.appointment_date,
+      ]
+    );
+
+  const dateIsPast =
+    Boolean(
+      form.appointment_date
+    ) &&
+    form.appointment_date <
+      todayDate;
+
+  const dateMatchesWorkingDays =
+    useMemo(() => {
+      if (
+        !form.appointment_date
+      ) {
+        return true;
+      }
+
+      /*
+        لو مفيش أيام عمل راجعة،
+        نخلي الـBackend هو اللي يتحقق.
+      */
+
+      if (
+        workingDays.length ===
+        0
+      ) {
+        return true;
+      }
+
+      return workingDays.includes(
+        selectedDayName
+      );
+    }, [
+      form.appointment_date,
+      workingDays,
+      selectedDayName,
+    ]);
+
+  const dateIsValid =
+    Boolean(
+      form.appointment_date
+    ) &&
+    !dateIsPast &&
+    dateMatchesWorkingDays;
 
   /* =======================================================
      STYLES
@@ -441,6 +569,7 @@ export default function BookingWizard({
     form.phone
       .trim() !==
       "" &&
+    dateIsValid &&
     doctorAvailable &&
     !doctorLoading;
 
@@ -462,6 +591,49 @@ export default function BookingWizard({
           value,
       })
     );
+
+    if (
+      field !==
+      "appointment_date"
+    ) {
+      return;
+    }
+
+    setError(
+      null
+    );
+
+    if (!value) {
+      return;
+    }
+
+    if (
+      value <
+      todayDate
+    ) {
+      setError(
+        "لا يمكن اختيار تاريخ سابق."
+      );
+
+      return;
+    }
+
+    const chosenDay =
+      getDateDayName(
+        value
+      );
+
+    if (
+      workingDays.length >
+        0 &&
+      !workingDays.includes(
+        chosenDay
+      )
+    ) {
+      setError(
+        `الطبيب غير متاح يوم ${chosenDay}. برجاء اختيار يوم من أيام عمل الطبيب.`
+      );
+    }
   };
 
   /* =======================================================
@@ -471,7 +643,6 @@ export default function BookingWizard({
   const handleConfirm =
     async () => {
       if (
-        !canSubmit ||
         submitting
       ) {
         return;
@@ -487,6 +658,56 @@ export default function BookingWizard({
         return;
       }
 
+      if (
+        !form.appointment_date
+      ) {
+        setError(
+          "برجاء اختيار تاريخ الحجز."
+        );
+
+        return;
+      }
+
+      if (
+        dateIsPast
+      ) {
+        setError(
+          "لا يمكن اختيار تاريخ سابق."
+        );
+
+        return;
+      }
+
+      if (
+        !dateMatchesWorkingDays
+      ) {
+        setError(
+          `الطبيب غير متاح يوم ${selectedDayName}. برجاء اختيار يوم من أيام عمل الطبيب.`
+        );
+
+        return;
+      }
+
+      if (
+        !form.full_name.trim()
+      ) {
+        setError(
+          "برجاء إدخال الاسم الكامل."
+        );
+
+        return;
+      }
+
+      if (
+        !form.phone.trim()
+      ) {
+        setError(
+          "برجاء إدخال رقم الهاتف."
+        );
+
+        return;
+      }
+
       setSubmitting(
         true
       );
@@ -497,59 +718,21 @@ export default function BookingWizard({
 
       try {
         await createAppointment({
-          full_name:
-            form.full_name
-              .trim(),
-
-          phone:
-            form.phone
-              .trim(),
-
-          email:
-            form.email
-              .trim() ||
-            null,
-
-          age:
-            form.age ||
-            null,
-
-          gender:
-            form.gender ||
-            null,
-
-          department:
-            department?.name ||
-            "",
-
-          doctor:
-            currentDoctor?.name ||
-            currentDoctor?.fullName ||
-            doctor?.name ||
-            "",
-
-          department_id:
-            department?.id ??
-            null,
-
-          doctor_id:
+          doctorId:
             currentDoctor?.id ??
             doctor?.id ??
             null,
 
-          notes:
-            form.notes
-              .trim() ||
-            null,
+          patientName:
+            form.full_name
+              .trim(),
 
-          appointment_date:
-            null,
+          patientPhone:
+            form.phone
+              .trim(),
 
-          appointment_time:
-            null,
-
-          status:
-            "pending",
+          appointmentDate:
+            form.appointment_date,
         });
 
         try {
@@ -586,9 +769,23 @@ export default function BookingWizard({
           err
         );
 
-        setError(
-          "حدث خطأ أثناء إرسال طلب الحجز. يرجى المحاولة مرة أخرى."
-        );
+        const backendMessage =
+          err?.response?.data
+            ?.message ||
+          "";
+
+        if (
+          backendMessage ===
+          "Doctor is not available on this day."
+        ) {
+          setError(
+            "الطبيب غير متاح في اليوم الذي تم اختياره. برجاء اختيار يوم من أيام عمل الطبيب."
+          );
+        } else {
+          setError(
+            "حدث خطأ أثناء إرسال طلب الحجز. يرجى المحاولة مرة أخرى."
+          );
+        }
       } finally {
         setSubmitting(
           false
@@ -766,6 +963,19 @@ export default function BookingWizard({
                 dir="ltr"
               >
                 {form.phone}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
+                تاريخ الحجز
+              </span>
+
+              <span
+                className="font-bold text-slate-800 text-sm"
+                dir="ltr"
+              >
+                {form.appointment_date}
               </span>
             </div>
 
@@ -1255,6 +1465,76 @@ export default function BookingWizard({
               </div>
             )}
 
+          {/* APPOINTMENT DATE */}
+
+          <div>
+            <label
+              className={
+                labelClass
+              }
+            >
+              تاريخ الحجز *
+            </label>
+
+            <input
+              type="date"
+              required
+              min={
+                todayDate
+              }
+              value={
+                form.appointment_date
+              }
+              onChange={(
+                event
+              ) =>
+                handleInputChange(
+                  "appointment_date",
+                  event.target.value
+                )
+              }
+              className={
+                inputClass
+              }
+              disabled={
+                submitting ||
+                !doctorAvailable
+              }
+            />
+
+            {form.appointment_date &&
+              !dateIsPast &&
+              dateMatchesWorkingDays && (
+                <p
+                  className="
+                    mt-2
+                    text-xs
+                    font-bold
+                    text-green-600
+                  "
+                >
+                  اليوم المختار:{" "}
+                  {selectedDayName}
+                </p>
+              )}
+
+            {form.appointment_date &&
+              !dateIsPast &&
+              !dateMatchesWorkingDays && (
+                <p
+                  className="
+                    mt-2
+                    text-xs
+                    font-bold
+                    text-red-600
+                  "
+                >
+                  الطبيب غير متاح يوم{" "}
+                  {selectedDayName}
+                </p>
+              )}
+          </div>
+
           {/* NAME + PHONE */}
 
           <div
@@ -1332,129 +1612,6 @@ export default function BookingWizard({
                 }
               />
             </div>
-          </div>
-
-          {/* AGE + GENDER */}
-
-          <div
-            className="
-              grid
-              sm:grid-cols-2
-              gap-5
-            "
-          >
-            <div>
-              <label
-                className={
-                  labelClass
-                }
-              >
-                العمر
-              </label>
-
-              <input
-                type="number"
-                min="0"
-                max="120"
-                value={
-                  form.age
-                }
-                onChange={(
-                  event
-                ) =>
-                  handleInputChange(
-                    "age",
-                    event.target.value
-                  )
-                }
-                className={
-                  inputClass
-                }
-                placeholder="العمر"
-                disabled={
-                  submitting ||
-                  !doctorAvailable
-                }
-              />
-            </div>
-
-            <div>
-              <label
-                className={
-                  labelClass
-                }
-              >
-                الجنس
-              </label>
-
-              <select
-                value={
-                  form.gender
-                }
-                onChange={(
-                  event
-                ) =>
-                  handleInputChange(
-                    "gender",
-                    event.target.value
-                  )
-                }
-                className={
-                  inputClass
-                }
-                disabled={
-                  submitting ||
-                  !doctorAvailable
-                }
-              >
-                <option value="">
-                  اختر
-                </option>
-
-                <option value="male">
-                  ذكر
-                </option>
-
-                <option value="female">
-                  أنثى
-                </option>
-              </select>
-            </div>
-          </div>
-
-          {/* NOTES */}
-
-          <div>
-            <label
-              className={
-                labelClass
-              }
-            >
-              ملاحظات (اختياري)
-            </label>
-
-            <input
-              type="text"
-              value={
-                form.notes
-              }
-              onChange={(
-                event
-              ) =>
-                handleInputChange(
-                  "notes",
-                  event.target.value
-                )
-              }
-              className={
-                inputClass
-              }
-              placeholder="أي ملاحظات إضافية"
-              disabled={
-                submitting ||
-                !doctorAvailable
-              }
-            />
           </div>
 
         </div>

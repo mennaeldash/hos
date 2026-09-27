@@ -51,10 +51,27 @@ import {
 ========================================================= */
 
 const HERO_IMAGES = [
-  "/images/photo_2026-08-16_01-47-18.webp",
-  "/images/Screenshot (5314).webp",
-  "/images/Screenshot (5310).webp",
-  "/images/Screenshot (5315).webp",
+  {
+    src: "/images/photo_2026-08-16_01-47-18.webp",
+    position: "center center",
+  },
+  {
+    src: "/images/Screenshot (5314).webp",
+    position:"center 72%",
+  },
+  {
+    src: "/images/Screenshot (5310).webp",
+    position: "center 50%",
+  },
+  {
+    src: "/images/Screenshot (5315).webp",
+    position: "center 45%",
+  },
+    {
+    src: "/images/Screenshot (5309).webp",
+    position: "center 30%",
+  },
+  
 ];
 
 /* =========================================================
@@ -363,8 +380,8 @@ export default function Home() {
 
     const preloader = new Image();
     preloader.decoding = "async";
-    preloader.src =
-      HERO_IMAGES[nextImageIndex];
+  preloader.src =
+  HERO_IMAGES[nextImageIndex].src;
   }, [activeHeroImage]);
 
   useEffect(() => {
@@ -986,29 +1003,33 @@ export default function Home() {
               }
             }
           `}</style>
+<img
+  key={HERO_IMAGES[activeHeroImage].src}
+  src={HERO_IMAGES[activeHeroImage].src}
+  alt="مستشفى رواد الطب"
+  fetchPriority={
+    activeHeroImage === 0
+      ? "high"
+      : "auto"
+  }
+  loading="eager"
+  decoding="async"
+  style={{
+    objectPosition:
+      HERO_IMAGES[activeHeroImage].position,
+  }}
+  className="
+    hero-image-3d
+    rowad-hero-fade
+    absolute
+    inset-0
+    w-full
+    h-full
+    object-cover
+  "
+/>
 
-          <img
-            key={HERO_IMAGES[activeHeroImage]}
-            src={HERO_IMAGES[activeHeroImage]}
-            alt="مستشفى رواد الطب"
-            fetchPriority={
-              activeHeroImage === 0
-                ? "high"
-                : "auto"
-            }
-            loading="eager"
-            decoding="async"
-            className="
-              hero-image-3d
-              rowad-hero-fade
-              absolute
-              inset-0
-              w-full
-              h-full
-              object-cover
-              object-[center_0%]
-            "
-          />
+
 
           {/* OVERLAY ثابت فوق كل الصور */}
 

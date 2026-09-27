@@ -1,19 +1,22 @@
-import CrudAdmin from './CrudAdmin';
-import PlaceholderImage from '@/components/PlaceholderImage';
+import CrudAdmin from "./CrudAdmin";
+import PlaceholderImage from "@/components/PlaceholderImage";
 
 import {
   createStaff,
   deleteStaff,
   getStaff,
   updateStaff,
-} from '@/services/staff';
+} from "@/services/staff";
 
 export default function StaffAdmin() {
   return (
     <CrudAdmin
       title="موظف"
       imageType="admin"
-      searchKeys={['name', 'position']}
+      searchKeys={[
+        "name",
+        "position",
+      ]}
       fetchItems={getStaff}
       createItem={createStaff}
       updateItem={updateStaff}
@@ -40,31 +43,43 @@ export default function StaffAdmin() {
           <p className="text-xs text-slate-500 mt-1 line-clamp-2">
             {item.description}
           </p>
+
+          <p className="text-xs text-slate-400 mt-2">
+            ترتيب الظهور:{" "}
+            {item.sort_order ?? 0}
+          </p>
         </div>
       )}
       columns={[
         {
-          key: 'name',
-          label: 'الاسم',
+          key: "name",
+          label: "الاسم",
           required: true,
-          placeholder: 'اسم الموظف',
+          placeholder: "اسم الموظف",
         },
         {
-          key: 'position',
-          label: 'المنصب',
+          key: "position",
+          label: "المنصب",
           required: true,
-          placeholder: 'المنصب',
+          placeholder: "المنصب",
         },
         {
-          key: 'description',
-          label: 'الوصف',
-          type: 'textarea',
-          placeholder: 'وصف مختصر',
+          key: "description",
+          label: "الوصف",
+          type: "textarea",
+          placeholder: "وصف مختصر",
         },
         {
-          key: 'image_url',
-          label: 'الصورة',
-          type: 'image',
+          key: "sort_order",
+          label: "ترتيب الظهور",
+          type: "number",
+          required: true,
+          placeholder: "مثال: 1",
+        },
+        {
+          key: "image_url",
+          label: "الصورة",
+          type: "image",
         },
       ]}
     />

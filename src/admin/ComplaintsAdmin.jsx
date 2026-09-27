@@ -101,18 +101,20 @@ export default function ComplaintsAdmin() {
 
         setItems([]);
 
-        if (
-          error?.response?.status ===
-          401
-        ) {
-          setError(
-            "غير مصرح بعرض الشكاوى والمقترحات. برجاء تسجيل الدخول مرة أخرى."
-          );
-        } else {
-          setError(
-            "حدث خطأ أثناء تحميل الشكاوى والمقترحات."
-          );
-        }
+     if (error?.response?.status === 401) {
+  setError(
+    "انتهت جلسة تسجيل الدخول. برجاء تسجيل الدخول مرة أخرى."
+  );
+} else if (error?.response?.status === 403) {
+  setError(
+    "الحساب الحالي ليس لديه صلاحية لعرض الشكاوى والمقترحات."
+  );
+} else {
+  setError(
+    "حدث خطأ أثناء تحميل الشكاوى والمقترحات."
+  );
+}
+
       } finally {
         setLoading(
           false

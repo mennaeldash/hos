@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import {
   UserPlus,
+  User,
   Mail,
   Lock,
   Eye,
@@ -20,12 +21,16 @@ import {
 ========================================================= */
 
 export default function CreateAdminAdmin() {
-const [form, setForm] = useState({
-  email: "",
-  password: "",
-  confirmPassword: "",
-  role: "Manager",
-});
+  const [
+    form,
+    setForm,
+  ] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "Manager",
+  });
 
   const [
     showPassword,
@@ -60,10 +65,16 @@ const [form, setForm] = useState({
     field,
     value
   ) => {
-    setForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
+    setForm(
+      (
+        previous
+      ) => ({
+        ...previous,
+
+        [field]:
+          value,
+      })
+    );
 
     setError("");
     setSuccess("");
@@ -74,11 +85,16 @@ const [form, setForm] = useState({
   ======================================================= */
 
   const handleSubmit =
-    async (event) => {
+    async (
+      event
+    ) => {
       event.preventDefault();
 
       setError("");
       setSuccess("");
+
+      const fullName =
+        form.fullName.trim();
 
       const email =
         form.email.trim();
@@ -92,7 +108,21 @@ const [form, setForm] = useState({
       const role =
         form.role;
 
-      /* EMAIL */
+      /* =====================================================
+         FULL NAME
+      ===================================================== */
+
+      if (!fullName) {
+        setError(
+          "من فضلك أدخل اسم الأدمن"
+        );
+
+        return;
+      }
+
+      /* =====================================================
+         EMAIL
+      ===================================================== */
 
       if (!email) {
         setError(
@@ -102,7 +132,9 @@ const [form, setForm] = useState({
         return;
       }
 
-      /* PASSWORD */
+      /* =====================================================
+         PASSWORD
+      ===================================================== */
 
       if (!password) {
         setError(
@@ -112,9 +144,13 @@ const [form, setForm] = useState({
         return;
       }
 
-      /* CONFIRM PASSWORD */
+      /* =====================================================
+         CONFIRM PASSWORD
+      ===================================================== */
 
-      if (!confirmPassword) {
+      if (
+        !confirmPassword
+      ) {
         setError(
           "من فضلك أكد كلمة المرور"
         );
@@ -122,7 +158,9 @@ const [form, setForm] = useState({
         return;
       }
 
-      /* PASSWORD MATCH */
+      /* =====================================================
+         PASSWORD MATCH
+      ===================================================== */
 
       if (
         password !==
@@ -135,7 +173,9 @@ const [form, setForm] = useState({
         return;
       }
 
-      /* ROLE */
+      /* =====================================================
+         ROLE
+      ===================================================== */
 
       if (!role) {
         setError(
@@ -145,29 +185,46 @@ const [form, setForm] = useState({
         return;
       }
 
-      setLoading(true);
+      /* =====================================================
+         REQUEST
+      ===================================================== */
+
+      setLoading(
+        true
+      );
 
       try {
         await createAdmin({
+          fullName,
           email,
           password,
           confirmPassword,
-  role: form.role,
+          role,
         });
 
         setSuccess(
           "تم إضافة الأدمن بنجاح"
         );
 
+        /* ===================================================
+           RESET FORM
+        =================================================== */
+
         setForm({
+          fullName: "",
           email: "",
           password: "",
           confirmPassword: "",
-          role: "SubManager",
+          role: "Manager",
         });
 
-        setShowPassword(false);
-        setShowConfirmPassword(false);
+        setShowPassword(
+          false
+        );
+
+        setShowConfirmPassword(
+          false
+        );
       } catch (err) {
         console.error(
           "CREATE ADMIN ERROR:",
@@ -178,7 +235,12 @@ const [form, setForm] = useState({
           err?.response?.data?.message ??
           err?.response?.data?.title ??
           err?.response?.data ??
+          err?.message ??
           null;
+
+        /* ===================================================
+           401
+        =================================================== */
 
         if (
           err?.response?.status ===
@@ -191,6 +253,10 @@ const [form, setForm] = useState({
           return;
         }
 
+        /* ===================================================
+           403
+        =================================================== */
+
         if (
           err?.response?.status ===
           403
@@ -201,6 +267,10 @@ const [form, setForm] = useState({
 
           return;
         }
+
+        /* ===================================================
+           BACKEND MESSAGE
+        =================================================== */
 
         if (
           typeof backendMessage ===
@@ -215,7 +285,9 @@ const [form, setForm] = useState({
           );
         }
       } finally {
-        setLoading(false);
+        setLoading(
+          false
+        );
       }
     };
 
@@ -242,26 +314,21 @@ const [form, setForm] = useState({
       <div
         className="
           bg-white
-
           rounded-3xl
-
           border
           border-slate-200
-
           shadow-sm
-
           overflow-hidden
         "
       >
 
         {/* =================================================
             HEADER
-        ================================================== */}
+        ================================================= */}
 
         <div
           className="
             p-6
-
             border-b
             border-slate-100
           "
@@ -277,13 +344,9 @@ const [form, setForm] = useState({
               className="
                 w-12
                 h-12
-
                 rounded-2xl
-
                 bg-primary-50
-
                 text-primary-600
-
                 flex
                 items-center
                 justify-center
@@ -312,12 +375,10 @@ const [form, setForm] = useState({
                 className="
                   text-sm
                   text-slate-500
-
                   mt-1
                 "
               >
-                إنشاء حساب جديد وتحديد
-                صلاحية الدخول إلى لوحة التحكم
+                إنشاء حساب جديد وتحديد صلاحية الدخول إلى لوحة التحكم
               </p>
             </div>
           </div>
@@ -325,7 +386,7 @@ const [form, setForm] = useState({
 
         {/* =================================================
             FORM
-        ================================================== */}
+        ================================================= */}
 
         <form
           onSubmit={
@@ -333,26 +394,21 @@ const [form, setForm] = useState({
           }
           className="
             p-6
-
             space-y-5
           "
         >
 
           {/* =================================================
               ERROR
-          ================================================== */}
+          ================================================= */}
 
           {error && (
             <div
               className="
                 p-4
-
                 rounded-xl
-
                 bg-red-50
-
                 text-red-700
-
                 text-sm
                 font-bold
               "
@@ -363,22 +419,17 @@ const [form, setForm] = useState({
 
           {/* =================================================
               SUCCESS
-          ================================================== */}
+          ================================================= */}
 
           {success && (
             <div
               className="
                 p-4
-
                 rounded-xl
-
                 bg-emerald-50
-
                 text-emerald-700
-
                 text-sm
                 font-bold
-
                 flex
                 items-center
                 gap-2
@@ -396,18 +447,69 @@ const [form, setForm] = useState({
           )}
 
           {/* =================================================
-              EMAIL
-          ================================================== */}
+              FULL NAME
+          ================================================= */}
 
           <div>
             <label
               className="
                 block
-
                 text-sm
                 font-bold
                 text-slate-700
+                mb-2
+              "
+            >
+              اسم الأدمن *
+            </label>
 
+            <div className="relative">
+              <User
+                className="
+                  absolute
+                  right-4
+                  top-1/2
+                  -translate-y-1/2
+                  w-5
+                  h-5
+                  text-slate-400
+                "
+              />
+
+              <input
+                type="text"
+                value={
+                  form.fullName
+                }
+                onChange={(
+                  event
+                ) =>
+                  handleChange(
+                    "fullName",
+                    event.target.value
+                  )
+                }
+                className={`${inputClass} pr-12`}
+                placeholder="اسم الأدمن بالكامل"
+                required
+                disabled={
+                  loading
+                }
+              />
+            </div>
+          </div>
+
+          {/* =================================================
+              EMAIL
+          ================================================= */}
+
+          <div>
+            <label
+              className="
+                block
+                text-sm
+                font-bold
+                text-slate-700
                 mb-2
               "
             >
@@ -418,15 +520,11 @@ const [form, setForm] = useState({
               <Mail
                 className="
                   absolute
-
                   right-4
                   top-1/2
-
                   -translate-y-1/2
-
                   w-5
                   h-5
-
                   text-slate-400
                 "
               />
@@ -457,17 +555,15 @@ const [form, setForm] = useState({
 
           {/* =================================================
               PASSWORD
-          ================================================== */}
+          ================================================= */}
 
           <div>
             <label
               className="
                 block
-
                 text-sm
                 font-bold
                 text-slate-700
-
                 mb-2
               "
             >
@@ -478,15 +574,11 @@ const [form, setForm] = useState({
               <Lock
                 className="
                   absolute
-
                   right-4
                   top-1/2
-
                   -translate-y-1/2
-
                   w-5
                   h-5
-
                   text-slate-400
                 "
               />
@@ -520,7 +612,9 @@ const [form, setForm] = useState({
                 type="button"
                 onClick={() =>
                   setShowPassword(
-                    (value) =>
+                    (
+                      value
+                    ) =>
                       !value
                   )
                 }
@@ -529,16 +623,11 @@ const [form, setForm] = useState({
                 }
                 className="
                   absolute
-
                   left-4
                   top-1/2
-
                   -translate-y-1/2
-
                   text-slate-400
-
                   hover:text-slate-700
-
                   disabled:opacity-50
                 "
               >
@@ -563,17 +652,15 @@ const [form, setForm] = useState({
 
           {/* =================================================
               CONFIRM PASSWORD
-          ================================================== */}
+          ================================================= */}
 
           <div>
             <label
               className="
                 block
-
                 text-sm
                 font-bold
                 text-slate-700
-
                 mb-2
               "
             >
@@ -584,15 +671,11 @@ const [form, setForm] = useState({
               <Lock
                 className="
                   absolute
-
                   right-4
                   top-1/2
-
                   -translate-y-1/2
-
                   w-5
                   h-5
-
                   text-slate-400
                 "
               />
@@ -626,7 +709,9 @@ const [form, setForm] = useState({
                 type="button"
                 onClick={() =>
                   setShowConfirmPassword(
-                    (value) =>
+                    (
+                      value
+                    ) =>
                       !value
                   )
                 }
@@ -635,16 +720,11 @@ const [form, setForm] = useState({
                 }
                 className="
                   absolute
-
                   left-4
                   top-1/2
-
                   -translate-y-1/2
-
                   text-slate-400
-
                   hover:text-slate-700
-
                   disabled:opacity-50
                 "
               >
@@ -669,17 +749,15 @@ const [form, setForm] = useState({
 
           {/* =================================================
               ROLE
-          ================================================== */}
+          ================================================= */}
 
           <div>
             <label
               className="
                 block
-
                 text-sm
                 font-bold
                 text-slate-700
-
                 mb-2
               "
             >
@@ -690,39 +768,42 @@ const [form, setForm] = useState({
               <ShieldCheck
                 className="
                   absolute
-
                   right-4
                   top-1/2
-
                   -translate-y-1/2
-
                   w-5
                   h-5
-
                   text-slate-400
-
                   pointer-events-none
                 "
               />
 
-         <select
-  value={form.role}
-  onChange={(event) =>
-    handleChange("role", event.target.value)
-  }
-  className={`${inputClass} pr-12`}
-  required
-  disabled={loading}
->
-  <option value="Manager">
-    Manager
-  </option>
+              <select
+                value={
+                  form.role
+                }
+                onChange={(
+                  event
+                ) =>
+                  handleChange(
+                    "role",
+                    event.target.value
+                  )
+                }
+                className={`${inputClass} pr-12`}
+                required
+                disabled={
+                  loading
+                }
+              >
+                <option value="Manager">
+                  Manager
+                </option>
 
-  <option value="Admin">
-    Admin
-  </option>
-</select>
-
+                <option value="Admin">
+                  Admin
+                </option>
+              </select>
             </div>
 
             <p
@@ -738,7 +819,7 @@ const [form, setForm] = useState({
 
           {/* =================================================
               SUBMIT
-          ================================================== */}
+          ================================================= */}
 
           <div
             className="
@@ -753,11 +834,8 @@ const [form, setForm] = useState({
               className="
                 btn
                 btn-primary
-
                 w-full
-
                 py-3
-
                 disabled:opacity-50
                 disabled:cursor-not-allowed
               "
@@ -768,7 +846,6 @@ const [form, setForm] = useState({
                     className="
                       w-5
                       h-5
-
                       animate-spin
                     "
                   />
@@ -791,6 +868,7 @@ const [form, setForm] = useState({
           </div>
 
         </form>
+
       </div>
     </div>
   );

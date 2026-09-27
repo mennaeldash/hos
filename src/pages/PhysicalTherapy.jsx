@@ -18,6 +18,7 @@ import PlaceholderImage from "@/components/PlaceholderImage";
 
 import {
   getAllDoctors,
+  getDoctor,
 } from "@/services/doctors";
 
 /* =========================================================
@@ -103,16 +104,26 @@ const getDoctorImageUrl = (
 const normalizeWorkingDays = (
   doctor
 ) => {
+  if (!doctor) {
+    return [];
+  }
+
   const rawDays =
     doctor?.workingDays ??
     doctor?.WorkingDays ??
     doctor?.working_days ??
     doctor?.days ??
     doctor?.Days ??
+    doctor?.workingDayIds ??
+    doctor?.WorkingDayIds ??
+    doctor?.workingDaysIds ??
+    doctor?.WorkingDaysIds ??
     [];
 
   if (
-    Array.isArray(rawDays)
+    Array.isArray(
+      rawDays
+    )
   ) {
     return rawDays;
   }
@@ -135,18 +146,81 @@ const normalizeWorkingDays = (
   return [];
 };
 
+/* =========================================================
+   ARABIC DAY
+========================================================= */
+
 const getArabicDay = (
   day
 ) => {
+  if (
+    day === null ||
+    day === undefined ||
+    day === ""
+  ) {
+    return "";
+  }
+
+  /*
+    لو اليوم Object
+  */
+
+  if (
+    typeof day ===
+      "object" &&
+    day !== null
+  ) {
+    const dayId =
+      day.id ??
+      day.Id ??
+      day.dayId ??
+      day.DayId;
+
+    const numericDays = {
+      0: "الأحد",
+      1: "الإثنين",
+      2: "الثلاثاء",
+      3: "الأربعاء",
+      4: "الخميس",
+      5: "الجمعة",
+      6: "السبت",
+    };
+
+    if (
+      dayId !== null &&
+      dayId !== undefined &&
+      numericDays[
+        Number(dayId)
+      ]
+    ) {
+      return numericDays[
+        Number(dayId)
+      ];
+    }
+
+    const dayName =
+      day.name ??
+      day.Name ??
+      day.day ??
+      day.Day ??
+      day.dayName ??
+      day.DayName ??
+      "";
+
+    return getArabicDay(
+      dayName
+    );
+  }
+
   const value =
     String(
-      day ?? ""
+      day
     )
       .trim()
       .toLowerCase();
 
   /*
-    لو الـBackend رجع أرقام
+    لو Backend رجع أرقام
   */
 
   const numericDays = {
@@ -171,8 +245,10 @@ const getArabicDay = (
   }
 
   return (
-    dayLabels[value] ||
-    day
+    dayLabels[
+      value
+    ] ||
+    String(day)
   );
 };
 
@@ -188,14 +264,10 @@ const isDoctorActive = (
     doctor?.Status ??
     "";
 
-  /*
-    Backend الحالي:
-    Active
-    Unavailable
-  */
-
   const normalized =
-    String(status)
+    String(
+      status
+    )
       .trim()
       .toLowerCase();
 
@@ -237,7 +309,7 @@ export default function PhysicalTherapy() {
   ] = useState("");
 
   /* =======================================================
-     LOAD DOCTORS
+     LOAD DOCTORS + FULL DETAILS
   ======================================================= */
 
   useEffect(() => {
@@ -255,8 +327,146 @@ export default function PhysicalTherapy() {
             ""
           );
 
+          /*
+            1- نجيب قائمة الدكاترة
+          */
+
           const response =
             await getAllDoctors();
+
+          const baseDoctors =
+            Array.isArray(
+              response
+            )
+              ? response
+              : [];
+
+          /*
+            2- نجيب تفاصيل كل دكتور
+            عشان workingDays تكون موجودة
+          */
+
+          const doctorsWithDetails =
+            await Promise.all(
+              baseDoctors.map(
+                async (
+                  doctor
+                ) => {
+                  const doctorId =
+                    doctor?.id ??
+                    doctor?.Id;
+
+                  if (
+                    doctorId ===
+                      null ||
+                    doctorId ===
+                      undefined ||
+                    doctorId ===
+                      ""
+                  ) {
+                    return doctor;
+                  }
+
+                  try {
+                    const details =
+                      await getDoctor(
+                        doctorId
+                      );
+
+                    const listDays =
+                      normalizeWorkingDays(
+                        doctor
+                      );
+
+                    const detailsDays =
+                      normalizeWorkingDays(
+                        details
+                      );
+
+                    const finalWorkingDays =
+                      detailsDays.length >
+                      0
+                        ? detailsDays
+                        : listDays;
+
+                    /*
+                      نحافظ على بيانات القسم
+                      من القائمة لو GET BY ID
+                      مش بيرجعها.
+                    */
+
+                    return {
+                      ...doctor,
+                      ...(details ||
+                        {}),
+
+                      id:
+                        details?.id ??
+                        details?.Id ??
+                        doctor?.id ??
+                        doctor?.Id,
+
+                      departmentId:
+                        details?.departmentId ??
+                        details?.DepartmentId ??
+                        doctor?.departmentId ??
+                        doctor?.DepartmentId ??
+                        doctor?.department_id ??
+                        null,
+
+                      department_id:
+                        details?.departmentId ??
+                        details?.DepartmentId ??
+                        details?.department_id ??
+                        doctor?.departmentId ??
+                        doctor?.DepartmentId ??
+                        doctor?.department_id ??
+                        null,
+
+                      departmentName:
+                        details?.departmentName ??
+                        details?.DepartmentName ??
+                        details?.department_name ??
+                        doctor?.departmentName ??
+                        doctor?.DepartmentName ??
+                        doctor?.department_name ??
+                        "",
+
+                      department_name:
+                        details?.departmentName ??
+                        details?.DepartmentName ??
+                        details?.department_name ??
+                        doctor?.departmentName ??
+                        doctor?.DepartmentName ??
+                        doctor?.department_name ??
+                        "",
+
+                      workingDays:
+                        finalWorkingDays,
+
+                      working_days:
+                        finalWorkingDays,
+                    };
+                  } catch (
+                    error
+                  ) {
+                    console.error(
+                      `GET PHYSICAL THERAPY DOCTOR ${doctorId} ERROR:`,
+                      error?.response
+                        ?.data ||
+                        error
+                    );
+
+                    /*
+                      لو تفاصيل دكتور واحد فشلت
+                      منبوظش الصفحة كلها.
+                    */
+
+                    return doctor;
+                  }
+                }
+              )
+            );
 
           if (
             cancelled
@@ -264,12 +474,13 @@ export default function PhysicalTherapy() {
             return;
           }
 
+          console.log(
+            "PHYSICAL THERAPY DOCTORS WITH DETAILS:",
+            doctorsWithDetails
+          );
+
           setAllDoctors(
-            Array.isArray(
-              response
-            )
-              ? response
-              : []
+            doctorsWithDetails
           );
         } catch (error) {
           console.error(
@@ -494,6 +705,7 @@ export default function PhysicalTherapy() {
           ================================================= */}
 
           {loading && (
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {Array.from({
@@ -517,6 +729,7 @@ export default function PhysicalTherapy() {
               )}
 
             </div>
+
           )}
 
           {/* =================================================
@@ -525,6 +738,7 @@ export default function PhysicalTherapy() {
 
           {!loading &&
             error && (
+
               <div
                 className="
                   rounded-2xl
@@ -540,6 +754,7 @@ export default function PhysicalTherapy() {
               >
                 {error}
               </div>
+
             )}
 
           {/* =================================================
@@ -550,6 +765,7 @@ export default function PhysicalTherapy() {
             !error &&
             doctors.length ===
               0 && (
+
               <div
                 className="
                   rounded-[24px]
@@ -566,6 +782,7 @@ export default function PhysicalTherapy() {
                   لا يوجد أطباء علاج طبيعي متاحون للعرض حالياً.
                 </p>
               </div>
+
             )}
 
           {/* =================================================
@@ -758,6 +975,7 @@ export default function PhysicalTherapy() {
                             {/* SPECIALIZATION */}
 
                             {specialty && (
+
                               <p
                                 className="
                                   text-[#197786]
@@ -771,11 +989,13 @@ export default function PhysicalTherapy() {
                                   specialty
                                 }
                               </p>
+
                             )}
 
                             {/* BIOGRAPHY */}
 
                             {bio && (
+
                               <p
                                 className="
                                   text-[#6D686A]
@@ -789,45 +1009,52 @@ export default function PhysicalTherapy() {
                                   bio
                                 }
                               </p>
+
                             )}
 
                             <div className="clear-both" />
 
-                            {/* WORKING DAYS */}
+                            {/* =================================================
+                                WORKING DAYS
+                            ================================================= */}
 
-                            {workingDays.length >
-                              0 && (
-                              <div
+                            <div
+                              className="
+                                pt-3
+                                mt-2
+                                border-t
+                                border-[#E7E3E3]
+                                mb-3
+                                flex
+                                flex-wrap
+                                items-center
+                                gap-2
+                              "
+                            >
+
+                              <span
                                 className="
-                                  pt-3
-                                  mt-2
-                                  border-t
-                                  border-[#E7E3E3]
-                                  mb-3
-                                  flex
-                                  flex-wrap
-                                  items-center
-                                  gap-1
+                                  text-md
+                                  font-extrabold
+                                  text-[#197786]
                                 "
                               >
+                                أيام العمل:
+                              </span>
 
-                                <span
-                                  className="
-                                    text-md
-                                    font-extrabold
-                                    text-[#197786]
-                                  "
-                                >
-                                  أيام العمل:
-                                </span>
+                              {workingDays.length >
+                                0 ? (
 
-                                {workingDays.map(
+                                workingDays.map(
                                   (
                                     day,
                                     dayIndex
                                   ) => (
+
                                     <span
-                                      key={`${day}-${dayIndex}`}
+                                      key={`${String(
+                                        day
+                                      )}-${dayIndex}`}
                                       className="
                                         px-2
                                         py-1.5
@@ -844,15 +1071,24 @@ export default function PhysicalTherapy() {
                                         )
                                       }
                                     </span>
-                                  )
-                                )}
 
-                              </div>
-                            )}
+                                  )
+                                )
+
+                              ) : (
+
+                                <span className="text-sm font-bold text-slate-400">
+                                  لم يتم تحديد أيام العمل
+                                </span>
+
+                              )}
+
+                            </div>
 
                             {/* STATUS */}
 
                             {!active && (
+
                               <div className="mb-3">
 
                                 <span
@@ -871,6 +1107,7 @@ export default function PhysicalTherapy() {
                                 </span>
 
                               </div>
+
                             )}
 
                             {/* BOOKING */}
@@ -937,6 +1174,7 @@ export default function PhysicalTherapy() {
                 )}
 
               </div>
+
             )}
 
         </div>

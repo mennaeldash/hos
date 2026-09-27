@@ -70,6 +70,58 @@ const sameId = (
   );
 };
 
+const getArabicDayFromDate = (
+  dateValue
+) => {
+  if (!dateValue) {
+    return "";
+  }
+
+  const rawDate =
+    String(dateValue)
+      .trim()
+      .split("T")[0];
+
+  const [
+    year,
+    month,
+    day,
+  ] = rawDate
+    .split("-")
+    .map(Number);
+
+  if (
+    !year ||
+    !month ||
+    !day
+  ) {
+    return "";
+  }
+
+  const date =
+    new Date(
+      year,
+      month - 1,
+      day
+    );
+
+  const days = [
+    "الأحد",
+    "الاثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة",
+    "السبت",
+  ];
+
+  return (
+    days[
+      date.getDay()
+    ] || ""
+  );
+};
+
 /* =========================================================
    MAIN
 ========================================================= */
@@ -1273,467 +1325,502 @@ export default function AppointmentsAdmin() {
 
       )}
 
-      {/* =================================================
-          APPOINTMENTS TABLE
-      ================================================== */}
+    {/* =================================================
+    APPOINTMENTS TABLE
+================================================== */}
+
+<div
+  className="
+    card
+    overflow-hidden
+  "
+>
+  {loading ? (
+    <div
+      className="
+        p-8
+        space-y-3
+      "
+    >
+      {Array.from({
+        length: 5,
+      }).map((_, index) => (
+        <div
+          key={index}
+          className="
+            h-16
+            shimmer-bg
+            rounded-xl
+          "
+        />
+      ))}
+    </div>
+  ) : pagedData.length === 0 ? (
+    <div
+      className="
+        p-12
+        text-center
+      "
+    >
+      <Stethoscope
+        className="
+          w-10
+          h-10
+          mx-auto
+          text-slate-300
+          mb-3
+        "
+      />
+
+      <p
+        className="
+          text-slate-500
+          font-bold
+        "
+      >
+        {selectedDoctor
+          ? `لا توجد حجوزات عند ${selectedDoctor.name}`
+          : selectedDepartment
+          ? `لا توجد حجوزات في قسم ${selectedDepartment.name}`
+          : "لا توجد مواعيد"}
+      </p>
+    </div>
+  ) : (
+    <div
+      className="
+        w-full
+        overflow-x-auto
+        overflow-y-hidden
+
+        touch-pan-x
+        overscroll-x-contain
+
+        [scrollbar-width:thin]
+        [-webkit-overflow-scrolling:touch]
+      "
+      dir="rtl"
+    >
+      <table
+        className="
+          w-full
+          min-w-[950px]
+          whitespace-nowrap
+        "
+      >
+        {/* ================================
+            HEADER
+        ================================= */}
+
+        <thead
+          className="
+            bg-slate-50
+            border-b
+            border-slate-200
+          "
+        >
+          <tr>
+            {/* PATIENT */}
+
+            <th
+              className="
+                min-w-[160px]
+                p-4
+                text-center
+                font-bold
+                text-slate-700
+                text-sm
+                cursor-pointer
+                hover:bg-slate-100
+              "
+              onClick={() =>
+                toggleSort(
+                  "full_name"
+                )
+              }
+            >
+              المريض{" "}
+              <SortIcon
+                field="full_name"
+              />
+            </th>
+
+            {/* DOCTOR */}
+
+            <th
+              className="
+                min-w-[190px]
+                p-4
+                text-center
+                font-bold
+                text-slate-700
+                text-sm
+              "
+            >
+              الطبيب
+            </th>
+
+            {/* DEPARTMENT */}
+
+            <th
+              className="
+                min-w-[160px]
+                p-4
+                text-center
+                font-bold
+                text-slate-700
+                text-sm
+              "
+            >
+              القسم
+            </th>
+
+            {/* DATE */}
+
+            <th
+              className="
+                min-w-[150px]
+                p-4
+                text-center
+                font-bold
+                text-slate-700
+                text-sm
+                cursor-pointer
+                hover:bg-slate-100
+              "
+              onClick={() =>
+                toggleSort(
+                  "appointment_date"
+                )
+              }
+            >
+              التاريخ{" "}
+              <SortIcon
+                field="appointment_date"
+              />
+            </th>
+
+            {/* PHONE */}
+
+            <th
+              className="
+                min-w-[160px]
+                p-4
+                text-center
+                font-bold
+                text-slate-700
+                text-sm
+              "
+            >
+              الهاتف
+            </th>
+
+            {/* DELETE */}
+
+            {canDeleteAppointments && (
+              <th
+                className="
+                  min-w-[90px]
+                  p-4
+                  text-center
+                  font-bold
+                  text-slate-700
+                  text-sm
+                "
+              >
+                حذف
+              </th>
+            )}
+          </tr>
+        </thead>
+
+        {/* ================================
+            BODY
+        ================================= */}
+
+        <tbody>
+          {pagedData.map(
+            (appointment) => (
+              <tr
+                key={
+                  appointment.id
+                }
+                className="
+                  border-b
+                  border-slate-100
+                  hover:bg-slate-50
+                  transition-colors
+                "
+              >
+                {/* PATIENT */}
+
+                <td
+                  className="
+                    min-w-[160px]
+                    p-4
+                    text-center
+                  "
+                >
+                  <p
+                    className="
+                      font-bold
+                      text-slate-800
+                      text-sm
+                    "
+                  >
+                    {appointment.full_name ||
+                      "-"}
+                  </p>
+                </td>
+
+                {/* DOCTOR */}
+
+                <td
+                  className="
+                    min-w-[190px]
+                    p-4
+                    text-center
+                    text-sm
+                    text-slate-600
+                  "
+                >
+                  {appointment.doctor ||
+                    "-"}
+                </td>
+
+                {/* DEPARTMENT */}
+
+                <td
+                  className="
+                    min-w-[160px]
+                    p-4
+                    text-center
+                    text-sm
+                    text-slate-600
+                  "
+                >
+                  {appointment.department ||
+                    "-"}
+                </td>
+
+                {/* DATE */}
+
+                <td
+                  className="
+                    min-w-[150px]
+                    p-4
+                    text-center
+                    text-sm
+                    text-slate-600
+                  "
+                >
+                  {appointment.appointment_date ? (
+                    <div
+                      className="
+                        flex
+                        flex-col
+                        items-center
+                        gap-1
+                      "
+                    >
+                      <span
+                        className="
+                          font-bold
+                          text-slate-700
+                        "
+                      >
+                        {getArabicDayFromDate(
+                          appointment.appointment_date
+                        )}
+                      </span>
+
+                      <span
+                        className="
+                          text-xs
+                          text-slate-500
+                        "
+                        dir="ltr"
+                      >
+                        {
+                          appointment.appointment_date
+                        }
+                      </span>
+                    </div>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+
+                {/* PHONE */}
+
+                <td
+                  className="
+                    min-w-[160px]
+                    p-4
+                    text-center
+                    text-sm
+                    text-slate-600
+                  "
+                  dir="ltr"
+                >
+                  {appointment.phone ||
+                    "-"}
+                </td>
+
+                {/* DELETE */}
+
+                {canDeleteAppointments && (
+                  <td
+                    className="
+                      min-w-[90px]
+                      p-4
+                      text-center
+                    "
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleDelete(
+                          appointment.id
+                        )
+                      }
+                      title="حذف الموعد"
+                      className="
+                        inline-flex
+                        items-center
+                        justify-center
+
+                        w-9
+                        h-9
+
+                        rounded-xl
+
+                        bg-error-50
+                        text-error-600
+
+                        hover:bg-error-600
+                        hover:text-white
+
+                        transition-all
+                      "
+                    >
+                      <Trash2
+                        className="
+                          w-4
+                          h-4
+                        "
+                      />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            )
+          )}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  {/* =================================================
+      PAGINATION
+  ================================================== */}
+
+  {totalPages > 1 && (
+    <div
+      className="
+        flex
+        items-center
+        justify-between
+        gap-3
+
+        p-4
+
+        border-t
+        border-slate-100
+      "
+    >
+      <span
+        className="
+          text-xs
+          sm:text-sm
+          text-slate-500
+        "
+      >
+        صفحة {page + 1} من{" "}
+        {totalPages} (
+        {filtered.length} موعد)
+      </span>
 
       <div
         className="
-          card
-          overflow-hidden
+          flex
+          gap-2
+          shrink-0
         "
       >
-
-        {loading ? (
-
-          <div
-            className="
-              p-8
-              space-y-3
-            "
-          >
-
-            {Array.from({
-              length: 5,
-            }).map(
-              (_, index) => (
-
-                <div
-                  key={index}
-                  className="
-                    h-16
-                    shimmer-bg
-                    rounded-xl
-                  "
-                />
-
+        <button
+          type="button"
+          onClick={() =>
+            setPage(
+              Math.max(
+                0,
+                page - 1
               )
-            )}
-
-          </div>
-
-        ) : pagedData.length ===
-          0 ? (
-
-          <div
+            )
+          }
+          disabled={
+            page === 0
+          }
+          className="
+            p-2
+            rounded-lg
+            bg-slate-100
+            hover:bg-slate-200
+            disabled:opacity-50
+            transition-all
+          "
+        >
+          <ChevronRight
             className="
-              p-12
-              text-center
+              w-4
+              h-4
             "
-          >
+          />
+        </button>
 
-            <Stethoscope
-              className="
-                w-10
-                h-10
-
-                mx-auto
-
-                text-slate-300
-
-                mb-3
-              "
-            />
-
-            <p
-              className="
-                text-slate-500
-                font-bold
-              "
-            >
-              {selectedDoctor
-                ? `لا توجد حجوزات عند ${selectedDoctor.name}`
-                : selectedDepartment
-                ? `لا توجد حجوزات في قسم ${selectedDepartment.name}`
-                : "لا توجد مواعيد"}
-            </p>
-
-          </div>
-
-        ) : (
-
-          <div
+        <button
+          type="button"
+          onClick={() =>
+            setPage(
+              Math.min(
+                totalPages - 1,
+                page + 1
+              )
+            )
+          }
+          disabled={
+            page >=
+            totalPages - 1
+          }
+          className="
+            p-2
+            rounded-lg
+            bg-slate-100
+            hover:bg-slate-200
+            disabled:opacity-50
+            transition-all
+          "
+        >
+          <ChevronLeft
             className="
-              overflow-x-auto
+              w-4
+              h-4
             "
-          >
-
-           <table className="w-full table-fixed">
-
-  {/* ================================
-      HEADER
-  ================================= */}
-
-  <thead className="bg-slate-50 border-b border-slate-200">
-    <tr>
-
-      {/* PATIENT */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          cursor-pointer
-          hover:bg-slate-100
-        "
-        onClick={() =>
-          toggleSort("full_name")
-        }
-      >
-        المريض{" "}
-        <SortIcon field="full_name" />
-      </th>
-
-      {/* DOCTOR */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          hidden
-          md:table-cell
-        "
-      >
-        الطبيب
-      </th>
-
-      {/* DEPARTMENT */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          hidden
-          lg:table-cell
-        "
-      >
-        القسم
-      </th>
-
-      {/* DATE */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          cursor-pointer
-          hover:bg-slate-100
-        "
-        onClick={() =>
-          toggleSort("appointment_date")
-        }
-      >
-        التاريخ{" "}
-        <SortIcon field="appointment_date" />
-      </th>
-
-      {/* TIME */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          hidden
-          md:table-cell
-        "
-      >
-        الوقت
-      </th>
-
-      {/* PHONE */}
-      <th
-        className="
-          p-4
-          text-center
-          font-bold
-          text-slate-700
-          text-sm
-          hidden
-          lg:table-cell
-        "
-      >
-        الهاتف
-      </th>
-
-      {/* DELETE - ADMIN ONLY */}
-      {canDeleteAppointments && (
-        <th
-          className="
-            p-4
-            text-center
-            font-bold
-            text-slate-700
-            text-sm
-          "
-        >
-          حذف
-        </th>
-      )}
-
-    </tr>
-  </thead>
-
-  {/* ================================
-      BODY
-  ================================= */}
-
-  <tbody>
-    {pagedData.map((appointment) => (
-
-      <tr
-        key={appointment.id}
-        className="
-          border-b
-          border-slate-100
-          hover:bg-slate-50
-          transition-colors
-        "
-      >
-
-        {/* PATIENT */}
-        <td className="p-4 text-center">
-          <p className="font-bold text-slate-800 text-sm">
-            {appointment.full_name || "-"}
-          </p>
-        </td>
-
-        {/* DOCTOR */}
-        <td
-          className="
-            p-4
-            text-center
-            text-sm
-            text-slate-600
-            hidden
-            md:table-cell
-          "
-        >
-          {appointment.doctor || "-"}
-        </td>
-
-        {/* DEPARTMENT */}
-        <td
-          className="
-            p-4
-            text-center
-            text-sm
-            text-slate-600
-            hidden
-            lg:table-cell
-          "
-        >
-          {appointment.department || "-"}
-        </td>
-
-        {/* DATE */}
-        <td
-          className="
-            p-4
-            text-center
-            text-sm
-            text-slate-600
-          "
-        >
-          {appointment.appointment_date || "-"}
-        </td>
-
-        {/* TIME */}
-        <td
-          className="
-            p-4
-            text-center
-            text-sm
-            text-slate-600
-            hidden
-            md:table-cell
-          "
-          dir="ltr"
-        >
-          {appointment.appointment_time || "-"}
-        </td>
-
-        {/* PHONE */}
-        <td
-          className="
-            p-4
-            text-center
-            text-sm
-            text-slate-600
-            hidden
-            lg:table-cell
-          "
-          dir="ltr"
-        >
-          {appointment.phone || "-"}
-        </td>
-
-        {/* DELETE - ADMIN ONLY */}
-        {canDeleteAppointments && (
-          <td className="p-4 text-center">
-            <button
-              type="button"
-              onClick={() =>
-                handleDelete(appointment.id)
-              }
-              title="حذف الموعد"
-              className="
-                inline-flex
-                items-center
-                justify-center
-                w-9
-                h-9
-                rounded-xl
-                bg-error-50
-                text-error-600
-                hover:bg-error-600
-                hover:text-white
-                transition-all
-              "
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </td>
-        )}
-
-      </tr>
-    ))}
-  </tbody>
-
-</table>
-          </div>
-
-        )}
-
-        {/* =================================================
-            PAGINATION
-        ================================================== */}
-
-        {totalPages > 1 && (
-
-          <div
-            className="
-              flex
-              items-center
-              justify-between
-
-              p-4
-
-              border-t
-              border-slate-100
-            "
-          >
-
-            <span
-              className="
-                text-sm
-                text-slate-500
-              "
-            >
-              صفحة {page + 1} من{" "}
-              {totalPages} (
-              {filtered.length} موعد)
-            </span>
-
-            <div
-              className="
-                flex
-                gap-2
-              "
-            >
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPage(
-                    Math.max(
-                      0,
-                      page - 1
-                    )
-                  )
-                }
-                disabled={
-                  page === 0
-                }
-                className="
-                  p-2
-
-                  rounded-lg
-
-                  bg-slate-100
-
-                  hover:bg-slate-200
-
-                  disabled:opacity-50
-
-                  transition-all
-                "
-              >
-
-                <ChevronRight
-                  className="
-                    w-4
-                    h-4
-                  "
-                />
-
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setPage(
-                    Math.min(
-                      totalPages -
-                        1,
-                      page + 1
-                    )
-                  )
-                }
-                disabled={
-                  page >=
-                  totalPages - 1
-                }
-                className="
-                  p-2
-
-                  rounded-lg
-
-                  bg-slate-100
-
-                  hover:bg-slate-200
-
-                  disabled:opacity-50
-
-                  transition-all
-                "
-              >
-
-                <ChevronLeft
-                  className="
-                    w-4
-                    h-4
-                  "
-                />
-
-              </button>
-
-            </div>
-
-          </div>
-
-        )}
-
+          />
+        </button>
       </div>
+    </div>
+  )}
+</div>
 
     </div>
   );

@@ -16,12 +16,6 @@ import Reveal from "@/components/Reveal";
 import PlaceholderImage from "@/components/PlaceholderImage";
 import { useEquipment } from "@/lib/hooks";
 
-/* =========================================================
-   SERVICE INFO
-
-   الـBackend لا يرجع category
-   لذلك نحدد شكل الأيقونة حسب اسم الخدمة.
-========================================================= */
 
 const getServiceInfo = (
   name

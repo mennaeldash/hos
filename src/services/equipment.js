@@ -3,20 +3,85 @@ import api from "./api";
 const EQUIPMENT_ENDPOINT =
   "/api/dashboard/services";
 
+const BACKEND_ORIGIN =
+  import.meta.env.VITE_BACKEND_ORIGIN ||
+  "http://rewaddashboard.runasp.net";
+
+/* ======================================================
+   IMAGE URL
+====================================================== */
+
+function getBackendImageUrl(
+  imageUrl
+) {
+  if (!imageUrl) {
+    return "";
+  }
+
+  const value =
+    String(
+      imageUrl
+    ).trim();
+
+  /*
+    لو الصورة بالفعل URL كامل
+  */
+
+  if (
+    value.startsWith(
+      "http://"
+    ) ||
+    value.startsWith(
+      "https://"
+    ) ||
+    value.startsWith(
+      "blob:"
+    ) ||
+    value.startsWith(
+      "data:"
+    )
+  ) {
+    return value;
+  }
+
+  /*
+    Backend بيرجع مثلاً:
+
+    /images/Services/abc.png
+
+    نحوله إلى:
+
+    http://rewaddashboard.runasp.net/images/Services/abc.png
+  */
+
+  return `${BACKEND_ORIGIN}${
+    value.startsWith("/")
+      ? value
+      : `/${value}`
+  }`;
+}
+
 /* ======================================================
    NORMALIZE
 ====================================================== */
 
-function normalizeEquipment(item) {
+function normalizeEquipment(
+  item
+) {
   if (!item) {
     return null;
   }
 
-  const imageUrl =
+  const rawImageUrl =
     item.imageUrl ??
     item.ImageUrl ??
     item.image_url ??
     "";
+
+  const imageUrl =
+    getBackendImageUrl(
+      rawImageUrl
+    );
 
   return {
     ...item,
@@ -36,6 +101,12 @@ function normalizeEquipment(item) {
       item.Description ??
       "",
 
+    /*
+      نخلي الاتنين URL كامل
+      عشان الأدمن والموقع
+      يشتغلوا بنفس القيمة.
+    */
+
     imageUrl,
 
     image_url:
@@ -47,7 +118,9 @@ function normalizeEquipment(item) {
    EXTRACT DATA
 ====================================================== */
 
-function extractData(responseData) {
+function extractData(
+  responseData
+) {
   return (
     responseData?.data ??
     responseData
@@ -58,7 +131,9 @@ function extractData(responseData) {
    BUILD FORM DATA
 ====================================================== */
 
-function buildFormData(data) {
+function buildFormData(
+  data
+) {
   const formData =
     new FormData();
 
@@ -82,15 +157,23 @@ function buildFormData(data) {
 
   /*
     CrudAdmin بيحط الصورة الجديدة
-    في image_url كـ File
+    في image_url كـ File.
+
+    أثناء التعديل لو image_url
+    عبارة عن URL قديم مش هنبعته،
+    ونبعت Image فقط لو المستخدم
+    اختار File جديد.
   */
 
   const selectedImage =
-    data?.image_url instanceof File
+    data?.image_url instanceof
+    File
       ? data.image_url
-      : data?.image instanceof File
+      : data?.image instanceof
+        File
       ? data.image
-      : data?.Image instanceof File
+      : data?.Image instanceof
+        File
       ? data.Image
       : null;
 
@@ -102,13 +185,8 @@ function buildFormData(data) {
     );
   }
 
-  /*
-    Debug مؤقت عشان نتأكد
-    إن الصورة داخلة فعلًا
-  */
-
   console.log(
-    "FORM DATA CONTENT:"
+    "EQUIPMENT FORM DATA:"
   );
 
   for (
@@ -126,6 +204,8 @@ function buildFormData(data) {
 
 /* ======================================================
    GET ALL
+
+   GET /api/dashboard/services
 ====================================================== */
 
 export async function getEquipment() {
@@ -146,7 +226,9 @@ export async function getEquipment() {
       );
 
     if (
-      !Array.isArray(result)
+      !Array.isArray(
+        result
+      )
     ) {
       return [];
     }
@@ -169,6 +251,8 @@ export async function getEquipment() {
 
 /* ======================================================
    GET BY ID
+
+   GET /api/dashboard/services/{id}
 ====================================================== */
 
 export async function getEquipmentById(
@@ -190,14 +274,21 @@ export async function getEquipmentById(
         `${EQUIPMENT_ENDPOINT}/${id}`
       );
 
+    console.log(
+      "GET EQUIPMENT BY ID RESPONSE:",
+      response.data
+    );
+
     const result =
       extractData(
         response.data
       );
 
-    return normalizeEquipment(
-      result
-    );
+    return result
+      ? normalizeEquipment(
+          result
+        )
+      : null;
   } catch (error) {
     console.error(
       "GET EQUIPMENT BY ID ERROR:",
@@ -211,6 +302,8 @@ export async function getEquipmentById(
 
 /* ======================================================
    CREATE
+
+   POST /api/dashboard/services
 ====================================================== */
 
 export async function createEquipment(
@@ -256,6 +349,8 @@ export async function createEquipment(
 
 /* ======================================================
    UPDATE
+
+   PUT /api/dashboard/services/{id}
 ====================================================== */
 
 export async function updateEquipment(
@@ -312,6 +407,8 @@ export async function updateEquipment(
 
 /* ======================================================
    DELETE
+
+   DELETE /api/dashboard/services/{id}
 ====================================================== */
 
 export async function deleteEquipment(
@@ -349,3 +446,16 @@ export async function deleteEquipment(
     throw error;
   }
 }
+
+/* ======================================================
+   ALIASES
+====================================================== */
+
+export const getEquipments =
+  getEquipment;
+
+export const getAllEquipment =
+  getEquipment;
+
+export const getServices =
+  getEquipment;

@@ -1,5 +1,11 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Link,
+} from "react-router-dom";
 
 import {
   CalendarDays,
@@ -16,9 +22,13 @@ import {
   Cross,
   ArrowRight,
   MessageSquareText,
+  History,
+    Home,
+
 } from "lucide-react";
 
 import AppointmentsAdmin from "@/admin/AppointmentsAdmin";
+import HomeAppointmentsAdmin from "@/admin/HomeAppointmentsAdmin";
 import DoctorsAdmin from "@/admin/DoctorsAdmin";
 import DepartmentsAdmin from "@/admin/DepartmentsAdmin";
 import StaffAdmin from "@/admin/StaffAdmin";
@@ -29,6 +39,7 @@ import ContentAdmin from "@/admin/ContentAdmin";
 import ComplaintsAdmin from "@/admin/ComplaintsAdmin";
 import ContactInfoAdmin from "@/admin/ContactInfoAdmin";
 import CreateAdminAdmin from "@/admin/CreateAdminAdmin";
+import AuditLogsAdmin from "@/admin/AuditLogsAdmin";
 
 import {
   canCreateAdmin,
@@ -43,6 +54,11 @@ const sidebarItems = [
     key: "appointments",
     label: "المواعيد",
     icon: CalendarDays,
+  },
+  {
+    key: "home-appointments",
+    label: "الحجز المنزلي",
+    icon: Home,
   },
 
   {
@@ -93,6 +109,17 @@ const sidebarItems = [
     icon: MessageSquareText,
   },
 
+  /* =======================================================
+     AUDIT LOGS
+  ======================================================= */
+
+  {
+    key: "audit-logs",
+    label: "سجل النشاط",
+    icon: History,
+    adminOnly: true,
+  },
+
   {
     key: "create-admin",
     label: "إضافة أدمن",
@@ -132,12 +159,20 @@ export default function Admin() {
     Manager:
     يشوف كل العناصر ما عدا
     العناصر المحددة adminOnly.
+
+    حالياً:
+    - إضافة أدمن
+    - سجل النشاط
+
+    للـ Admin فقط.
   */
 
   const visibleSidebarItems =
     useMemo(() => {
       return sidebarItems.filter(
-        (item) => {
+        (
+          item
+        ) => {
           if (
             item.adminOnly &&
             !userCanCreateAdmin
@@ -157,12 +192,17 @@ export default function Admin() {
   ======================================================= */
 
   const renderContent = () => {
-    switch (active) {
+    switch (
+      active
+    ) {
       case "appointments":
         return (
           <AppointmentsAdmin />
         );
-
+case "home-appointments":
+  return (
+    <HomeAppointmentsAdmin />
+  );
       case "doctors":
         return (
           <DoctorsAdmin />
@@ -236,6 +276,24 @@ export default function Admin() {
         );
 
       /* =================================================
+         AUDIT LOGS
+         ADMIN ONLY
+      ================================================= */
+
+      case "audit-logs":
+        if (
+          !userCanCreateAdmin
+        ) {
+          return (
+            <AppointmentsAdmin />
+          );
+        }
+
+        return (
+          <AuditLogsAdmin />
+        );
+
+      /* =================================================
          CREATE ADMIN
          ADMIN ONLY
       ================================================= */
@@ -266,8 +324,11 @@ export default function Admin() {
 
   const activePageLabel =
     visibleSidebarItems.find(
-      (item) =>
-        item.key === active
+      (
+        item
+      ) =>
+        item.key ===
+        active
     )?.label ||
     "المواعيد";
 
@@ -284,9 +345,10 @@ export default function Admin() {
       "
       dir="rtl"
     >
+
       {/* =================================================
           SIDEBAR
-      ================================================== */}
+      ================================================= */}
 
       <aside
         className={`
@@ -316,7 +378,9 @@ export default function Admin() {
       >
         <div className="p-6">
 
-          {/* LOGO */}
+          {/* =================================================
+              LOGO
+          ================================================= */}
 
           <Link
             to="/"
@@ -370,7 +434,9 @@ export default function Admin() {
             </div>
           </Link>
 
-          {/* NAVIGATION */}
+          {/* =================================================
+              NAVIGATION
+          ================================================= */}
 
           <nav
             className="
@@ -381,7 +447,9 @@ export default function Admin() {
             "
           >
             {visibleSidebarItems.map(
-              (item) => {
+              (
+                item
+              ) => {
                 const Icon =
                   item.icon;
 
@@ -452,7 +520,7 @@ export default function Admin() {
 
       {/* =================================================
           MOBILE OVERLAY
-      ================================================== */}
+      ================================================= */}
 
       {sidebarOpen && (
         <div
@@ -473,7 +541,7 @@ export default function Admin() {
 
       {/* =================================================
           MAIN CONTENT
-      ================================================== */}
+      ================================================= */}
 
       <div
         className="
@@ -481,7 +549,10 @@ export default function Admin() {
           min-w-0
         "
       >
-        {/* TOP BAR */}
+
+        {/* =================================================
+            TOP BAR
+        ================================================= */}
 
         <header
           className="
@@ -501,6 +572,7 @@ export default function Admin() {
               py-4
             "
           >
+
             {/* PAGE TITLE */}
 
             <div
@@ -554,7 +626,9 @@ export default function Admin() {
               </h1>
             </div>
 
-            {/* BACK TO WEBSITE */}
+            {/* =================================================
+                BACK TO WEBSITE
+            ================================================= */}
 
             <div
               className="
@@ -590,7 +664,9 @@ export default function Admin() {
           </div>
         </header>
 
-        {/* PAGE */}
+        {/* =================================================
+            PAGE
+        ================================================= */}
 
         <div className="p-6">
           {renderContent()}
