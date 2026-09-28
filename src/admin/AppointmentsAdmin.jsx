@@ -14,7 +14,10 @@ import {
   ChevronDown,
   Stethoscope,
   Users,
+  FileSpreadsheet,
 } from "lucide-react";
+
+import * as XLSX from "xlsx";
 
 import PlaceholderImage from "@/components/PlaceholderImage";
 
@@ -70,6 +73,10 @@ const sameId = (
   );
 };
 
+/* =========================================================
+   DATE DAY
+========================================================= */
+
 const getArabicDayFromDate = (
   dateValue
 ) => {
@@ -120,6 +127,68 @@ const getArabicDayFromDate = (
       date.getDay()
     ] || ""
   );
+};
+
+/* =========================================================
+   APPOINTMENT TYPE
+========================================================= */
+
+const getAppointmentType = (
+  appointment
+) => {
+  return (
+    appointment?.appointment_type ||
+    appointment?.appointmentType ||
+    appointment?.type ||
+    ""
+  );
+};
+
+/* =========================================================
+   EXPORT HELPERS
+========================================================= */
+
+const getExportDate = () => {
+  const date =
+    new Date();
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(
+      2,
+      "0"
+    );
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(
+      2,
+      "0"
+    );
+
+  return `${year}-${month}-${day}`;
+};
+
+const cleanFileName = (
+  value
+) => {
+  return String(
+    value || ""
+  )
+    .trim()
+    .replace(
+      /[\\/:*?"<>|]/g,
+      "-"
+    )
+    .replace(
+      /\s+/g,
+      "_"
+    );
 };
 
 /* =========================================================
@@ -292,11 +361,6 @@ export default function AppointmentsAdmin() {
 
       return doctors.filter(
         (doctor) => {
-          /* =============================================
-             PRIMARY:
-             Department ID
-          ============================================== */
-
           if (
             doctor.department_id !==
               null &&
@@ -310,11 +374,6 @@ export default function AppointmentsAdmin() {
               selectedDepartmentId
             );
           }
-
-          /* =============================================
-             FALLBACK:
-             Department Name
-          ============================================== */
 
           return (
             normalizeText(
@@ -367,12 +426,9 @@ export default function AppointmentsAdmin() {
       value
     );
 
-    /*
-      لما نغير القسم
-      نشيل الدكتور المختار القديم.
-    */
-
-    setSelectedDoctorId(null);
+    setSelectedDoctorId(
+      null
+    );
 
     setPage(0);
   };
@@ -389,9 +445,7 @@ export default function AppointmentsAdmin() {
       let result =
         appointments.filter(
           (appointment) => {
-            /* ===========================================
-               SEARCH
-            ============================================ */
+            /* SEARCH */
 
             const matchesSearch =
               !searchValue ||
@@ -414,11 +468,16 @@ export default function AppointmentsAdmin() {
                 appointment.department
               ).includes(
                 searchValue
+              ) ||
+              normalizeText(
+                getAppointmentType(
+                  appointment
+                )
+              ).includes(
+                searchValue
               );
 
-            /* ===========================================
-               DEPARTMENT
-            ============================================ */
+            /* DEPARTMENT */
 
             let matchesDepartment =
               true;
@@ -451,9 +510,7 @@ export default function AppointmentsAdmin() {
               }
             }
 
-            /* ===========================================
-               DOCTOR
-            ============================================ */
+            /* DOCTOR */
 
             let matchesDoctor =
               true;
@@ -493,9 +550,7 @@ export default function AppointmentsAdmin() {
           }
         );
 
-      /* =============================================
-         SORT
-      ============================================== */
+      /* SORT */
 
       result.sort(
         (a, b) => {
@@ -556,6 +611,237 @@ export default function AppointmentsAdmin() {
     ]);
 
   /* =======================================================
+     EXPORT REAL EXCEL XLSX
+  ======================================================= */
+
+  const handleExportAppointments =
+    () => {
+      if (
+        filtered.length ===
+        0
+      ) {
+        alert(
+          "لا توجد مواعيد لتصديرها"
+        );
+
+        return;
+      }
+
+      /*
+        نستخدم Array of Arrays بدل CSV.
+
+        كده العربي يطلع سليم
+        ورقم الهاتف يفضل Text.
+      */
+const excelData = [
+  [
+    "اسم المريض",
+    "رقم الهاتف",
+    "الطبيب",
+    "القسم",
+    "نوع الحجز",
+    "اليوم",
+    "التاريخ",
+  ],
+
+  ...filtered.map((appointment) => {
+    const appointmentDate =
+      appointment.appointment_date || "";
+
+    return [
+      String(
+        appointment.full_name || ""
+      ),
+
+      String(
+        appointment.phone || ""
+      ),
+
+      String(
+        appointment.doctor || ""
+      ),
+
+      String(
+        appointment.department || ""
+      ),
+
+      String(
+        getAppointmentType(
+          appointment
+        ) || ""
+      ),
+
+      String(
+        getArabicDayFromDate(
+          appointmentDate
+        ) || ""
+      ),
+
+      String(
+        appointmentDate
+      ),
+    ];
+  }),
+];
+      /* CREATE SHEET */
+
+      const worksheet =
+        XLSX.utils.aoa_to_sheet(
+          excelData
+        );
+
+      /* ===================================================
+         COLUMN WIDTHS
+      =================================================== */
+
+      worksheet["!cols"] = [
+        {
+          wch: 12,
+        },
+        {
+          wch: 25,
+        },
+        {
+          wch: 18,
+        },
+        {
+          wch: 35,
+        },
+        {
+          wch: 35,
+        },
+        {
+          wch: 16,
+        },
+        {
+          wch: 14,
+        },
+        {
+          wch: 16,
+        },
+      ];
+
+      /* ===================================================
+         FORCE PHONE COLUMN TO TEXT
+
+         Column C = رقم الهاتف
+      =================================================== */
+
+      for (
+        let rowIndex = 2;
+        rowIndex <=
+        filtered.length + 1;
+        rowIndex++
+      ) {
+        const phoneCell =
+          worksheet[
+            `B${rowIndex}`
+          ];
+
+        if (phoneCell) {
+          phoneCell.t =
+            "s";
+
+          phoneCell.v =
+            String(
+              phoneCell.v ??
+                ""
+            );
+
+          phoneCell.z =
+            "@";
+        }
+      }
+
+      /* ===================================================
+         FORCE DATE TO TEXT
+
+         Column H = التاريخ
+      =================================================== */
+
+      for (
+        let rowIndex = 2;
+        rowIndex <=
+        filtered.length + 1;
+        rowIndex++
+      ) {
+        const dateCell =
+          worksheet[
+            `H${rowIndex}`
+          ];
+
+        if (dateCell) {
+          dateCell.t =
+            "s";
+
+          dateCell.v =
+            String(
+              dateCell.v ??
+                ""
+            );
+
+          dateCell.z =
+            "@";
+        }
+      }
+
+      /* ===================================================
+         WORKBOOK
+      =================================================== */
+
+      const workbook =
+        XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        "المواعيد"
+      );
+
+      /* ===================================================
+         FILE NAME
+      =================================================== */
+
+      let scopeName =
+        "كل_المواعيد";
+
+      if (
+        selectedDepartment
+      ) {
+        scopeName =
+          `قسم_${selectedDepartment.name}`;
+      }
+
+      if (
+        selectedDoctor
+      ) {
+        scopeName =
+          `${scopeName}_الدكتور_${selectedDoctor.name}`;
+      }
+
+      if (
+        search.trim()
+      ) {
+        scopeName =
+          `${scopeName}_نتائج_البحث`;
+      }
+
+      const fileName =
+        `مواعيد_${cleanFileName(
+          scopeName
+        )}_${getExportDate()}.xlsx`;
+
+      /* ===================================================
+         DOWNLOAD
+      =================================================== */
+
+      XLSX.writeFile(
+        workbook,
+        fileName
+      );
+    };
+
+  /* =======================================================
      PAGINATION
   ======================================================= */
 
@@ -600,7 +886,9 @@ export default function AppointmentsAdmin() {
 
   const handleDelete =
     async (id) => {
-      if (!canDeleteAppointments) {
+      if (
+        !canDeleteAppointments
+      ) {
         return;
       }
 
@@ -609,7 +897,9 @@ export default function AppointmentsAdmin() {
           "هل أنت متأكد من حذف هذا الموعد؟"
         );
 
-      if (!confirmed) {
+      if (
+        !confirmed
+      ) {
         return;
       }
 
@@ -651,7 +941,9 @@ export default function AppointmentsAdmin() {
         field
       );
 
-      setSortDir("asc");
+      setSortDir(
+        "asc"
+      );
     }
   };
 
@@ -721,7 +1013,7 @@ export default function AppointmentsAdmin() {
     <div className="space-y-6">
 
       {/* =================================================
-          SEARCH + DEPARTMENT FILTER
+          SEARCH + DEPARTMENT + EXPORT
       ================================================== */}
 
       <div className="card p-5">
@@ -730,7 +1022,7 @@ export default function AppointmentsAdmin() {
           className="
             flex
             flex-col
-            md:flex-row
+            lg:flex-row
             gap-4
           "
         >
@@ -750,18 +1042,18 @@ export default function AppointmentsAdmin() {
                 right-3
                 top-1/2
                 -translate-y-1/2
-
                 w-5
                 h-5
-
                 text-slate-400
               "
             />
 
             <input
               type="text"
-              placeholder="ابحث باسم المريض أو الهاتف أو الطبيب أو القسم..."
-              value={search}
+              placeholder="ابحث باسم المريض أو الهاتف أو الطبيب أو القسم أو نوع الحجز..."
+              value={
+                search
+              }
               onChange={(
                 event
               ) => {
@@ -783,8 +1075,7 @@ export default function AppointmentsAdmin() {
               flex
               items-center
               gap-2
-
-              md:w-[280px]
+              lg:w-[280px]
             "
           >
 
@@ -843,7 +1134,83 @@ export default function AppointmentsAdmin() {
 
           </div>
 
+          {/* EXPORT BUTTON */}
+
+          <button
+            type="button"
+            onClick={
+              handleExportAppointments
+            }
+            disabled={
+              loading ||
+              filtered.length ===
+                0
+            }
+            className="
+              inline-flex
+              items-center
+              justify-center
+              gap-2
+
+              min-h-[42px]
+
+              rounded-xl
+
+              bg-emerald-600
+              text-white
+
+              px-5
+              py-2.5
+
+              text-sm
+              font-extrabold
+
+              hover:bg-emerald-700
+
+              disabled:opacity-50
+              disabled:cursor-not-allowed
+
+              transition-all
+
+              lg:shrink-0
+            "
+          >
+
+            <FileSpreadsheet
+              className="
+                w-5
+                h-5
+              "
+            />
+
+            تصدير Excel
+
+          </button>
+
         </div>
+
+        {!loading &&
+          filtered.length >
+            0 && (
+            <p
+              className="
+                mt-3
+                text-xs
+                text-slate-500
+              "
+            >
+              سيتم تصدير{" "}
+              <span
+                className="
+                  font-bold
+                  text-slate-700
+                "
+              >
+                {filtered.length}
+              </span>{" "}
+              موعد حسب الفلاتر الحالية.
+            </p>
+          )}
 
       </div>
 
@@ -856,15 +1223,12 @@ export default function AppointmentsAdmin() {
 
         <div className="card p-5">
 
-          {/* TITLE */}
-
           <div
             className="
               flex
               items-center
               justify-between
               gap-4
-
               mb-5
             "
           >
@@ -912,9 +1276,7 @@ export default function AppointmentsAdmin() {
                 className="
                   text-sm
                   font-bold
-
                   text-primary-600
-
                   hover:text-primary-700
                 "
               >
@@ -924,8 +1286,6 @@ export default function AppointmentsAdmin() {
             )}
 
           </div>
-
-          {/* DOCTORS */}
 
           {doctorsLoading ? (
 
@@ -941,18 +1301,20 @@ export default function AppointmentsAdmin() {
               {Array.from({
                 length: 4,
               }).map(
-                (_, index) => (
+                (
+                  _,
+                  index
+                ) => (
 
                   <div
-                    key={index}
+                    key={
+                      index
+                    }
                     className="
                       shrink-0
-
                       w-[220px]
                       h-[110px]
-
                       rounded-2xl
-
                       shimmer-bg
                     "
                   />
@@ -982,11 +1344,8 @@ export default function AppointmentsAdmin() {
               className="
                 flex
                 gap-4
-
                 overflow-x-auto
-
                 pb-3
-
                 [scrollbar-width:thin]
               "
             >
@@ -1004,21 +1363,14 @@ export default function AppointmentsAdmin() {
                 }}
                 className={`
                   shrink-0
-
                   min-w-[190px]
-
                   rounded-2xl
-
                   border-2
-
                   p-4
-
                   flex
                   items-center
                   gap-3
-
                   text-right
-
                   transition-all
 
                   ${
@@ -1041,17 +1393,12 @@ export default function AppointmentsAdmin() {
                   className="
                     w-12
                     h-12
-
                     rounded-xl
-
                     bg-[#D1F9FC]
-
                     text-[#197786]
-
                     flex
                     items-center
                     justify-center
-
                     shrink-0
                   "
                 >
@@ -1094,7 +1441,9 @@ export default function AppointmentsAdmin() {
               {/* DOCTOR CARDS */}
 
               {departmentDoctors.map(
-                (doctor) => {
+                (
+                  doctor
+                ) => {
 
                   const isSelected =
                     sameId(
@@ -1119,22 +1468,15 @@ export default function AppointmentsAdmin() {
                       }}
                       className={`
                         shrink-0
-
                         min-w-[240px]
                         max-w-[280px]
-
                         rounded-2xl
-
                         border-2
-
                         p-4
-
                         flex
                         items-center
                         gap-3
-
                         text-right
-
                         transition-all
                         duration-300
 
@@ -1156,21 +1498,15 @@ export default function AppointmentsAdmin() {
                       `}
                     >
 
-                      {/* IMAGE */}
-
                       <div
                         className="
                           w-14
                           h-14
-
                           rounded-full
-
                           p-[2px]
-
                           bg-gradient-to-br
                           from-[#197786]
                           to-[#83BDC4]
-
                           shrink-0
                         "
                       >
@@ -1193,8 +1529,6 @@ export default function AppointmentsAdmin() {
 
                       </div>
 
-                      {/* DOCTOR DATA */}
-
                       <div
                         className="
                           min-w-0
@@ -1206,7 +1540,6 @@ export default function AppointmentsAdmin() {
                             font-extrabold
                             text-slate-800
                             text-sm
-
                             truncate
                           "
                         >
@@ -1220,9 +1553,7 @@ export default function AppointmentsAdmin() {
                             text-xs
                             text-[#197786]
                             font-bold
-
                             mt-1
-
                             line-clamp-2
                           "
                         >
@@ -1268,13 +1599,9 @@ export default function AppointmentsAdmin() {
               className="
                 px-3
                 py-1.5
-
                 rounded-lg
-
                 bg-slate-200
-
                 text-slate-700
-
                 text-xs
                 font-bold
               "
@@ -1293,13 +1620,9 @@ export default function AppointmentsAdmin() {
               className="
                 px-3
                 py-1.5
-
                 rounded-lg
-
                 bg-[#D1F9FC]
-
                 text-[#197786]
-
                 text-xs
                 font-bold
               "
@@ -1325,502 +1648,595 @@ export default function AppointmentsAdmin() {
 
       )}
 
-    {/* =================================================
-    APPOINTMENTS TABLE
-================================================== */}
-
-<div
-  className="
-    card
-    overflow-hidden
-  "
->
-  {loading ? (
-    <div
-      className="
-        p-8
-        space-y-3
-      "
-    >
-      {Array.from({
-        length: 5,
-      }).map((_, index) => (
-        <div
-          key={index}
-          className="
-            h-16
-            shimmer-bg
-            rounded-xl
-          "
-        />
-      ))}
-    </div>
-  ) : pagedData.length === 0 ? (
-    <div
-      className="
-        p-12
-        text-center
-      "
-    >
-      <Stethoscope
-        className="
-          w-10
-          h-10
-          mx-auto
-          text-slate-300
-          mb-3
-        "
-      />
-
-      <p
-        className="
-          text-slate-500
-          font-bold
-        "
-      >
-        {selectedDoctor
-          ? `لا توجد حجوزات عند ${selectedDoctor.name}`
-          : selectedDepartment
-          ? `لا توجد حجوزات في قسم ${selectedDepartment.name}`
-          : "لا توجد مواعيد"}
-      </p>
-    </div>
-  ) : (
-    <div
-      className="
-        w-full
-        overflow-x-auto
-        overflow-y-hidden
-
-        touch-pan-x
-        overscroll-x-contain
-
-        [scrollbar-width:thin]
-        [-webkit-overflow-scrolling:touch]
-      "
-      dir="rtl"
-    >
-      <table
-        className="
-          w-full
-          min-w-[950px]
-          whitespace-nowrap
-        "
-      >
-        {/* ================================
-            HEADER
-        ================================= */}
-
-        <thead
-          className="
-            bg-slate-50
-            border-b
-            border-slate-200
-          "
-        >
-          <tr>
-            {/* PATIENT */}
-
-            <th
-              className="
-                min-w-[160px]
-                p-4
-                text-center
-                font-bold
-                text-slate-700
-                text-sm
-                cursor-pointer
-                hover:bg-slate-100
-              "
-              onClick={() =>
-                toggleSort(
-                  "full_name"
-                )
-              }
-            >
-              المريض{" "}
-              <SortIcon
-                field="full_name"
-              />
-            </th>
-
-            {/* DOCTOR */}
-
-            <th
-              className="
-                min-w-[190px]
-                p-4
-                text-center
-                font-bold
-                text-slate-700
-                text-sm
-              "
-            >
-              الطبيب
-            </th>
-
-            {/* DEPARTMENT */}
-
-            <th
-              className="
-                min-w-[160px]
-                p-4
-                text-center
-                font-bold
-                text-slate-700
-                text-sm
-              "
-            >
-              القسم
-            </th>
-
-            {/* DATE */}
-
-            <th
-              className="
-                min-w-[150px]
-                p-4
-                text-center
-                font-bold
-                text-slate-700
-                text-sm
-                cursor-pointer
-                hover:bg-slate-100
-              "
-              onClick={() =>
-                toggleSort(
-                  "appointment_date"
-                )
-              }
-            >
-              التاريخ{" "}
-              <SortIcon
-                field="appointment_date"
-              />
-            </th>
-
-            {/* PHONE */}
-
-            <th
-              className="
-                min-w-[160px]
-                p-4
-                text-center
-                font-bold
-                text-slate-700
-                text-sm
-              "
-            >
-              الهاتف
-            </th>
-
-            {/* DELETE */}
-
-            {canDeleteAppointments && (
-              <th
-                className="
-                  min-w-[90px]
-                  p-4
-                  text-center
-                  font-bold
-                  text-slate-700
-                  text-sm
-                "
-              >
-                حذف
-              </th>
-            )}
-          </tr>
-        </thead>
-
-        {/* ================================
-            BODY
-        ================================= */}
-
-        <tbody>
-          {pagedData.map(
-            (appointment) => (
-              <tr
-                key={
-                  appointment.id
-                }
-                className="
-                  border-b
-                  border-slate-100
-                  hover:bg-slate-50
-                  transition-colors
-                "
-              >
-                {/* PATIENT */}
-
-                <td
-                  className="
-                    min-w-[160px]
-                    p-4
-                    text-center
-                  "
-                >
-                  <p
-                    className="
-                      font-bold
-                      text-slate-800
-                      text-sm
-                    "
-                  >
-                    {appointment.full_name ||
-                      "-"}
-                  </p>
-                </td>
-
-                {/* DOCTOR */}
-
-                <td
-                  className="
-                    min-w-[190px]
-                    p-4
-                    text-center
-                    text-sm
-                    text-slate-600
-                  "
-                >
-                  {appointment.doctor ||
-                    "-"}
-                </td>
-
-                {/* DEPARTMENT */}
-
-                <td
-                  className="
-                    min-w-[160px]
-                    p-4
-                    text-center
-                    text-sm
-                    text-slate-600
-                  "
-                >
-                  {appointment.department ||
-                    "-"}
-                </td>
-
-                {/* DATE */}
-
-                <td
-                  className="
-                    min-w-[150px]
-                    p-4
-                    text-center
-                    text-sm
-                    text-slate-600
-                  "
-                >
-                  {appointment.appointment_date ? (
-                    <div
-                      className="
-                        flex
-                        flex-col
-                        items-center
-                        gap-1
-                      "
-                    >
-                      <span
-                        className="
-                          font-bold
-                          text-slate-700
-                        "
-                      >
-                        {getArabicDayFromDate(
-                          appointment.appointment_date
-                        )}
-                      </span>
-
-                      <span
-                        className="
-                          text-xs
-                          text-slate-500
-                        "
-                        dir="ltr"
-                      >
-                        {
-                          appointment.appointment_date
-                        }
-                      </span>
-                    </div>
-                  ) : (
-                    "-"
-                  )}
-                </td>
-
-                {/* PHONE */}
-
-                <td
-                  className="
-                    min-w-[160px]
-                    p-4
-                    text-center
-                    text-sm
-                    text-slate-600
-                  "
-                  dir="ltr"
-                >
-                  {appointment.phone ||
-                    "-"}
-                </td>
-
-                {/* DELETE */}
-
-                {canDeleteAppointments && (
-                  <td
-                    className="
-                      min-w-[90px]
-                      p-4
-                      text-center
-                    "
-                  >
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleDelete(
-                          appointment.id
-                        )
-                      }
-                      title="حذف الموعد"
-                      className="
-                        inline-flex
-                        items-center
-                        justify-center
-
-                        w-9
-                        h-9
-
-                        rounded-xl
-
-                        bg-error-50
-                        text-error-600
-
-                        hover:bg-error-600
-                        hover:text-white
-
-                        transition-all
-                      "
-                    >
-                      <Trash2
-                        className="
-                          w-4
-                          h-4
-                        "
-                      />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            )
-          )}
-        </tbody>
-      </table>
-    </div>
-  )}
-
-  {/* =================================================
-      PAGINATION
-  ================================================== */}
-
-  {totalPages > 1 && (
-    <div
-      className="
-        flex
-        items-center
-        justify-between
-        gap-3
-
-        p-4
-
-        border-t
-        border-slate-100
-      "
-    >
-      <span
-        className="
-          text-xs
-          sm:text-sm
-          text-slate-500
-        "
-      >
-        صفحة {page + 1} من{" "}
-        {totalPages} (
-        {filtered.length} موعد)
-      </span>
+      {/* =================================================
+          APPOINTMENTS TABLE
+      ================================================== */}
 
       <div
         className="
-          flex
-          gap-2
-          shrink-0
+          card
+          overflow-hidden
         "
       >
-        <button
-          type="button"
-          onClick={() =>
-            setPage(
-              Math.max(
-                0,
-                page - 1
-              )
-            )
-          }
-          disabled={
-            page === 0
-          }
-          className="
-            p-2
-            rounded-lg
-            bg-slate-100
-            hover:bg-slate-200
-            disabled:opacity-50
-            transition-all
-          "
-        >
-          <ChevronRight
-            className="
-              w-4
-              h-4
-            "
-          />
-        </button>
 
-        <button
-          type="button"
-          onClick={() =>
-            setPage(
-              Math.min(
-                totalPages - 1,
-                page + 1
-              )
-            )
-          }
-          disabled={
-            page >=
-            totalPages - 1
-          }
-          className="
-            p-2
-            rounded-lg
-            bg-slate-100
-            hover:bg-slate-200
-            disabled:opacity-50
-            transition-all
-          "
-        >
-          <ChevronLeft
+        {loading ? (
+
+          <div
             className="
-              w-4
-              h-4
+              p-8
+              space-y-3
             "
-          />
-        </button>
+          >
+
+            {Array.from({
+              length: 5,
+            }).map(
+              (
+                _,
+                index
+              ) => (
+
+                <div
+                  key={
+                    index
+                  }
+                  className="
+                    h-16
+                    shimmer-bg
+                    rounded-xl
+                  "
+                />
+
+              )
+            )}
+
+          </div>
+
+        ) : pagedData.length ===
+          0 ? (
+
+          <div
+            className="
+              p-12
+              text-center
+            "
+          >
+
+            <Stethoscope
+              className="
+                w-10
+                h-10
+                mx-auto
+                text-slate-300
+                mb-3
+              "
+            />
+
+            <p
+              className="
+                text-slate-500
+                font-bold
+              "
+            >
+              {selectedDoctor
+                ? `لا توجد حجوزات عند ${selectedDoctor.name}`
+                : selectedDepartment
+                ? `لا توجد حجوزات في قسم ${selectedDepartment.name}`
+                : "لا توجد مواعيد"}
+            </p>
+
+          </div>
+
+        ) : (
+
+          <div
+            className="
+              w-full
+              overflow-x-auto
+              overflow-y-hidden
+              touch-pan-x
+              overscroll-x-contain
+              [scrollbar-width:thin]
+              [-webkit-overflow-scrolling:touch]
+            "
+            dir="rtl"
+          >
+
+            <table
+              className="
+                w-full
+                min-w-[1080px]
+                whitespace-nowrap
+              "
+            >
+
+              <thead
+                className="
+                  bg-slate-50
+                  border-b
+                  border-slate-200
+                "
+              >
+
+                <tr>
+
+                  <th
+                    className="
+                      min-w-[160px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                      cursor-pointer
+                      hover:bg-slate-100
+                    "
+                    onClick={() =>
+                      toggleSort(
+                        "full_name"
+                      )
+                    }
+                  >
+                    المريض{" "}
+
+                    <SortIcon
+                      field="full_name"
+                    />
+                  </th>
+
+                  <th
+                    className="
+                      min-w-[190px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                    "
+                  >
+                    الطبيب
+                  </th>
+
+                  <th
+                    className="
+                      min-w-[160px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                    "
+                  >
+                    القسم
+                  </th>
+
+                  <th
+                    className="
+                      min-w-[120px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                    "
+                  >
+                    نوع الحجز
+                  </th>
+
+                  <th
+                    className="
+                      min-w-[150px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                      cursor-pointer
+                      hover:bg-slate-100
+                    "
+                    onClick={() =>
+                      toggleSort(
+                        "appointment_date"
+                      )
+                    }
+                  >
+                    التاريخ{" "}
+
+                    <SortIcon
+                      field="appointment_date"
+                    />
+                  </th>
+
+                  <th
+                    className="
+                      min-w-[160px]
+                      p-4
+                      text-center
+                      font-bold
+                      text-slate-700
+                      text-sm
+                    "
+                  >
+                    الهاتف
+                  </th>
+
+                  {canDeleteAppointments && (
+
+                    <th
+                      className="
+                        min-w-[90px]
+                        p-4
+                        text-center
+                        font-bold
+                        text-slate-700
+                        text-sm
+                      "
+                    >
+                      حذف
+                    </th>
+
+                  )}
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                {pagedData.map(
+                  (
+                    appointment
+                  ) => {
+
+                    const appointmentType =
+                      getAppointmentType(
+                        appointment
+                      );
+
+                    return (
+
+                      <tr
+                        key={
+                          appointment.id
+                        }
+                        className="
+                          border-b
+                          border-slate-100
+                          hover:bg-slate-50
+                          transition-colors
+                        "
+                      >
+
+                        <td
+                          className="
+                            min-w-[160px]
+                            p-4
+                            text-center
+                          "
+                        >
+
+                          <p
+                            className="
+                              font-bold
+                              text-slate-800
+                              text-sm
+                            "
+                          >
+                            {appointment.full_name ||
+                              "-"}
+                          </p>
+
+                        </td>
+
+                        <td
+                          className="
+                            min-w-[190px]
+                            p-4
+                            text-center
+                            text-sm
+                            text-slate-600
+                          "
+                        >
+                          {appointment.doctor ||
+                            "-"}
+                        </td>
+
+                        <td
+                          className="
+                            min-w-[160px]
+                            p-4
+                            text-center
+                            text-sm
+                            text-slate-600
+                          "
+                        >
+                          {appointment.department ||
+                            "-"}
+                        </td>
+
+                        <td
+                          className="
+                            min-w-[120px]
+                            p-4
+                            text-center
+                          "
+                        >
+
+                          {appointmentType ? (
+
+                            <span
+                              className={`
+                                inline-flex
+                                items-center
+                                justify-center
+                                rounded-lg
+                                px-3
+                                py-1.5
+                                text-xs
+                                font-extrabold
+
+                                ${
+                                  appointmentType ===
+                                  "نقدي"
+                                    ? "bg-emerald-50 text-emerald-700"
+                                    : "bg-blue-50 text-blue-700"
+                                }
+                              `}
+                            >
+                              {
+                                appointmentType
+                              }
+                            </span>
+
+                          ) : (
+
+                            <span
+                              className="
+                                text-sm
+                                text-slate-400
+                              "
+                            >
+                              -
+                            </span>
+
+                          )}
+
+                        </td>
+
+                        <td
+                          className="
+                            min-w-[150px]
+                            p-4
+                            text-center
+                            text-sm
+                            text-slate-600
+                          "
+                        >
+
+                          {appointment.appointment_date ? (
+
+                            <div
+                              className="
+                                flex
+                                flex-col
+                                items-center
+                                gap-1
+                              "
+                            >
+
+                              <span
+                                className="
+                                  font-bold
+                                  text-slate-700
+                                "
+                              >
+                                {getArabicDayFromDate(
+                                  appointment.appointment_date
+                                )}
+                              </span>
+
+                              <span
+                                className="
+                                  text-xs
+                                  text-slate-500
+                                "
+                                dir="ltr"
+                              >
+                                {
+                                  appointment.appointment_date
+                                }
+                              </span>
+
+                            </div>
+
+                          ) : (
+                            "-"
+                          )}
+
+                        </td>
+
+                        <td
+                          className="
+                            min-w-[160px]
+                            p-4
+                            text-center
+                            text-sm
+                            text-slate-600
+                          "
+                          dir="ltr"
+                        >
+                          {appointment.phone ||
+                            "-"}
+                        </td>
+
+                        {canDeleteAppointments && (
+
+                          <td
+                            className="
+                              min-w-[90px]
+                              p-4
+                              text-center
+                            "
+                          >
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleDelete(
+                                  appointment.id
+                                )
+                              }
+                              title="حذف الموعد"
+                              className="
+                                inline-flex
+                                items-center
+                                justify-center
+                                w-9
+                                h-9
+                                rounded-xl
+                                bg-error-50
+                                text-error-600
+                                hover:bg-error-600
+                                hover:text-white
+                                transition-all
+                              "
+                            >
+
+                              <Trash2
+                                className="
+                                  w-4
+                                  h-4
+                                "
+                              />
+
+                            </button>
+
+                          </td>
+
+                        )}
+
+                      </tr>
+
+                    );
+                  }
+                )}
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+        )}
+
+        {/* PAGINATION */}
+
+        {totalPages > 1 && (
+
+          <div
+            className="
+              flex
+              items-center
+              justify-between
+              gap-3
+              p-4
+              border-t
+              border-slate-100
+            "
+          >
+
+            <span
+              className="
+                text-xs
+                sm:text-sm
+                text-slate-500
+              "
+            >
+              صفحة {page + 1} من{" "}
+              {totalPages} (
+              {filtered.length} موعد)
+            </span>
+
+            <div
+              className="
+                flex
+                gap-2
+                shrink-0
+              "
+            >
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPage(
+                    Math.max(
+                      0,
+                      page - 1
+                    )
+                  )
+                }
+                disabled={
+                  page === 0
+                }
+                className="
+                  p-2
+                  rounded-lg
+                  bg-slate-100
+                  hover:bg-slate-200
+                  disabled:opacity-50
+                  transition-all
+                "
+              >
+
+                <ChevronRight
+                  className="
+                    w-4
+                    h-4
+                  "
+                />
+
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPage(
+                    Math.min(
+                      totalPages - 1,
+                      page + 1
+                    )
+                  )
+                }
+                disabled={
+                  page >=
+                  totalPages - 1
+                }
+                className="
+                  p-2
+                  rounded-lg
+                  bg-slate-100
+                  hover:bg-slate-200
+                  disabled:opacity-50
+                  transition-all
+                "
+              >
+
+                <ChevronLeft
+                  className="
+                    w-4
+                    h-4
+                  "
+                />
+
+              </button>
+
+            </div>
+
+          </div>
+
+        )}
+
       </div>
-    </div>
-  )}
-</div>
 
     </div>
   );

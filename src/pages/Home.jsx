@@ -52,7 +52,7 @@ import {
 
 const HERO_IMAGES = [
   {
-    src: "/images/photo_2026-08-16_01-47-18.webp",
+    src: "/images/photo_2026-09-28_05-46-44.webp",
     position: "center center",
   },
   {
@@ -2086,7 +2086,7 @@ export default function Home() {
                         className="
                           flex
                           h-full
-                          min-h-[170px]
+                          min-h-[220px]
                           flex-col
                           items-center
                           justify-center
@@ -2153,6 +2153,21 @@ export default function Home() {
                             partner.name
                           }
                         </h3>
+
+                        {partner.description && (
+                          <p
+                            className="
+                              px-1
+                              text-lg
+                              sm:text-sm
+                              leading-6
+                              text-slate-700
+                              line-clamp-3
+                            "
+                          >
+                            {partner.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                   )

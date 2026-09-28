@@ -23,7 +23,7 @@ const firstValue = (
         /*
           نخلي الرقم 0 صالح،
           لكن نتجاهل String فاضي
-          علشان نكمل للـfallback اللي بعده.
+          علشان نكمل للـ fallback اللي بعده.
         */
 
         if (
@@ -71,6 +71,7 @@ const DAY_LABELS = [
    2026-09-17T00:00:00
 
    لكن الموقع محتاج يعرض:
+
    2026-09-17
 
    بدون وقت نهائياً.
@@ -127,14 +128,11 @@ function getAppointmentDate(
       /^(\d{4}-\d{2}-\d{2})/
     );
 
-  if (dateMatch?.[1]) {
+  if (
+    dateMatch?.[1]
+  ) {
     return dateMatch[1];
   }
-
-  /*
-    احتياطي لو Backend
-    رجع Format مختلف.
-  */
 
   return raw;
 }
@@ -175,12 +173,6 @@ function getArabicDayFromDate(
   ) {
     return "";
   }
-
-  /*
-    بنستخدم new Date(year, month - 1, day)
-    علشان نحسب اليوم محلياً بدون
-    مشاكل timezone.
-  */
 
   const date =
     new Date(
@@ -265,6 +257,19 @@ function normalizeAppointment(
       data.PatientPhone,
       data.phone,
       data.Phone
+    );
+
+  /* =======================================================
+     APPOINTMENT TYPE
+  ======================================================= */
+
+  const appointmentType =
+    firstValue(
+      data.type,
+      data.Type,
+      data.appointmentType,
+      data.AppointmentType,
+      data.appointment_type
     );
 
   /* =======================================================
@@ -372,6 +377,16 @@ function normalizeAppointment(
         patientPhone
       ),
 
+    type:
+      normalizeText(
+        appointmentType
+      ),
+
+    appointmentType:
+      normalizeText(
+        appointmentType
+      ),
+
     appointmentDate:
       appointmentDate,
 
@@ -399,9 +414,6 @@ function normalizeAppointment(
 
     /* =====================
        ADMIN STYLE
-
-       AppointmentsAdmin.jsx
-       بيستخدم الحقول دي.
     ====================== */
 
     full_name:
@@ -412,6 +424,11 @@ function normalizeAppointment(
     phone:
       normalizeText(
         patientPhone
+      ),
+
+    appointment_type:
+      normalizeText(
+        appointmentType
       ),
 
     doctor_id:
@@ -430,16 +447,8 @@ function normalizeAppointment(
         departmentName
       ),
 
-    /*
-      التاريخ فقط.
-    */
-
     appointment_date:
       appointmentDate,
-
-    /*
-      اسم اليوم بالعربي.
-    */
 
     appointment_day:
       appointmentDay,
@@ -458,15 +467,6 @@ function normalizeAppointment(
 function extractAppointmentsArray(
   responseData
 ) {
-  /*
-    لو Backend رجع:
-
-    [
-      {...},
-      {...}
-    ]
-  */
-
   if (
     Array.isArray(
       responseData
@@ -474,14 +474,6 @@ function extractAppointmentsArray(
   ) {
     return responseData;
   }
-
-  /*
-    الشكل الحالي:
-
-    {
-      data: [...]
-    }
-  */
 
   if (
     Array.isArray(
@@ -491,14 +483,6 @@ function extractAppointmentsArray(
     return responseData.data;
   }
 
-  /*
-    PascalCase fallback:
-
-    {
-      Data: [...]
-    }
-  */
-
   if (
     Array.isArray(
       responseData?.Data
@@ -506,10 +490,6 @@ function extractAppointmentsArray(
   ) {
     return responseData.Data;
   }
-
-  /*
-    احتياطي.
-  */
 
   if (
     Array.isArray(
@@ -591,16 +571,6 @@ export async function getAppointment(
       response.data
     );
 
-    /*
-      Backend ممكن يرجع:
-
-      {
-        data: {...}
-      }
-
-      أو Object مباشر.
-    */
-
     const raw =
       response.data?.data ??
       response.data?.Data ??
@@ -630,17 +600,13 @@ export async function getAppointment(
 
    2026-09-18T00:00:00
 
-   والـ00:00:00 هنا مجرد Format
-   للـAPI ومش بيتعرض للمستخدم.
+   والـ 00:00:00 هنا مجرد Format
+   للـ API ومش بيتعرض للمستخدم.
 ========================================================= */
 
 function buildAppointmentDate(
   data
 ) {
-  /*
-    لو جاي appointmentDate مباشرة.
-  */
-
   const directValue =
     firstValue(
       data?.appointmentDate,
@@ -660,12 +626,6 @@ function buildAppointmentDate(
     return `${date}T00:00:00`;
   }
 
-  /*
-    لو الفورم بيستخدم:
-    appointment_date
-    أو date.
-  */
-
   const rawDate =
     firstValue(
       data?.appointment_date,
@@ -681,12 +641,6 @@ function buildAppointmentDate(
   if (!date) {
     return "";
   }
-
-  /*
-    Backend محتاج DateTime،
-    لذلك بنضيف منتصف الليل فقط
-    كجزء تقني من الـPayload.
-  */
 
   return `${date}T00:00:00`;
 }
@@ -772,6 +726,21 @@ export async function createAppointment(
     );
 
   /* =======================================================
+     APPOINTMENT TYPE
+  ======================================================= */
+
+  const type =
+    normalizeText(
+      firstValue(
+        data.type,
+        data.Type,
+        data.appointmentType,
+        data.AppointmentType,
+        data.appointment_type
+      )
+    );
+
+  /* =======================================================
      DATE
   ======================================================= */
 
@@ -806,6 +775,12 @@ export async function createAppointment(
     );
   }
 
+  if (!type) {
+    throw new Error(
+      "نوع الحجز مطلوب"
+    );
+  }
+
   if (!appointmentDate) {
     throw new Error(
       "تاريخ الحجز مطلوب"
@@ -820,18 +795,15 @@ export async function createAppointment(
      {
        patientName,
        patientPhone,
+       type,
        appointmentDate
      }
-
-     اسم اليوم لا يتم إرساله للباك.
-     بنحسبه فقط في الفرونت.
   ======================================================= */
 
   const payload = {
     patientName,
-
     patientPhone,
-
+    type,
     appointmentDate,
   };
 
@@ -930,6 +902,11 @@ export async function deleteAppointment(
   }
 }
 
+/* =========================================================
+   UPDATE APPOINTMENT
+
+   غير موجود حالياً في الـ API
+========================================================= */
 
 export async function updateAppointment() {
   throw new Error(

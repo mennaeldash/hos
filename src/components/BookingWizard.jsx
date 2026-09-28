@@ -466,6 +466,7 @@ export default function BookingWizard({
   ] = useState({
     full_name: "",
     phone: "",
+    type: "",
     appointment_date: "",
     email: "",
   });
@@ -569,6 +570,9 @@ export default function BookingWizard({
     form.phone
       .trim() !==
       "" &&
+    form.type
+      .trim() !==
+      "" &&
     dateIsValid &&
     doctorAvailable &&
     !doctorLoading;
@@ -586,7 +590,6 @@ export default function BookingWizard({
         previousForm
       ) => ({
         ...previousForm,
-
         [field]:
           value,
       })
@@ -596,6 +599,12 @@ export default function BookingWizard({
       field !==
       "appointment_date"
     ) {
+      if (error) {
+        setError(
+          null
+        );
+      }
+
       return;
     }
 
@@ -689,6 +698,16 @@ export default function BookingWizard({
       }
 
       if (
+        !form.type.trim()
+      ) {
+        setError(
+          "برجاء اختيار نوع الحجز."
+        );
+
+        return;
+      }
+
+      if (
         !form.full_name.trim()
       ) {
         setError(
@@ -729,6 +748,10 @@ export default function BookingWizard({
 
           patientPhone:
             form.phone
+              .trim(),
+
+          type:
+            form.type
               .trim(),
 
           appointmentDate:
@@ -851,7 +874,7 @@ export default function BookingWizard({
               mb-3
             "
           >
-            تم إرسال طلب الحجز بنجاح
+            تم إرسال طلب الحجز  بنجاح
           </h2>
 
           <p
@@ -860,8 +883,8 @@ export default function BookingWizard({
               mb-6
             "
           >
-            تم تسجيل بياناتك، وسوف يتم
-            التواصل معك لتأكيد موعد الحجز.
+            تم تلقي طلبك، وسوف يتم
+            التواصل معك لتأكيد  الحجز.
           </p>
 
           <div
@@ -963,6 +986,16 @@ export default function BookingWizard({
                 dir="ltr"
               >
                 {form.phone}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-slate-500 text-sm">
+                نوع الحجز
+              </span>
+
+              <span className="font-bold text-slate-800 text-sm">
+                {form.type}
               </span>
             </div>
 
@@ -1237,7 +1270,6 @@ export default function BookingWizard({
       {/* FORM */}
 
       <div className="p-6">
-
         {error && (
           <div
             className="
@@ -1443,7 +1475,6 @@ export default function BookingWizard({
                   {doctorError}
                 </p>
               )}
-
             </div>
           )}
 
@@ -1535,6 +1566,52 @@ export default function BookingWizard({
               )}
           </div>
 
+          {/* BOOKING TYPE */}
+
+          <div>
+            <label
+              className={
+                labelClass
+              }
+            >
+              نوع الحجز *
+            </label>
+
+            <select
+              required
+              value={
+                form.type
+              }
+              onChange={(
+                event
+              ) =>
+                handleInputChange(
+                  "type",
+                  event.target.value
+                )
+              }
+              className={
+                inputClass
+              }
+              disabled={
+                submitting ||
+                !doctorAvailable
+              }
+            >
+              <option value="">
+                اختر نوع الحجز
+              </option>
+
+              <option value="نقدي">
+                نقدي
+              </option>
+
+              <option value="تعاقدات">
+                تعاقدات
+              </option>
+            </select>
+          </div>
+
           {/* NAME + PHONE */}
 
           <div
@@ -1613,7 +1690,6 @@ export default function BookingWizard({
               />
             </div>
           </div>
-
         </div>
       </div>
 
@@ -1688,12 +1764,10 @@ export default function BookingWizard({
             <>
               <Check className="w-4 h-4" />
 
-              تأكيد الحجز
-            </>
+ارسال طلبك            </>
           )}
         </button>
       </div>
-
     </div>
   );
 }

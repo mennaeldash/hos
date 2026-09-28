@@ -375,7 +375,7 @@ export default function AuditLogsAdmin() {
                     font-extrabold
                   "
                 >
-                  عمل إيه
+                   ماذا فعل
                 </th>
 
                 <th
